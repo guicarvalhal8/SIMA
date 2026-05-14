@@ -1,0 +1,31 @@
+# Web Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+
+# Database
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+
+# Auth & Security
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+python-multipart>=0.0.6
+
+# Data & Analytics
+numpy>=1.26.0
+scipy>=1.12.0
+pandas>=2.0.0
+openpyxl>=3.1.2
+scikit-learn>=1.4.0
+
+# Testing
+pytest>=8.0.0
+httpx>=0.25.0
+
+# AI / LLM
+google-generativeai>=0.8.0
+
+# Utilities
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+reportlab>=4.0.0
