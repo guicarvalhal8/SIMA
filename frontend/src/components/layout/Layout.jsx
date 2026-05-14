@@ -48,7 +48,7 @@ export function Layout() {
         return <Navigate to="/login" replace />;
     }
 
-    if (location.pathname === '/' && role && role !== 'admin' && role !== 'viewer') {
+    if (location.pathname === '/' && role && role !== 'viewer') {
         return <Navigate to={getDefaultRoute(role)} replace />;
     }
 

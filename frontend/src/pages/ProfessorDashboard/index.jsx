@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StudentDetailModal } from '@/components/StudentDetailModal';
-import { getRoleMeta } from '@/lib/app-shell';
+import { buildRolePath, getRoleMeta } from '@/lib/app-shell';
 
 function getRiskVariant(level) {
     if (level === 'critical') return 'danger';
@@ -32,14 +32,14 @@ function getRiskVariant(level) {
     return 'success';
 }
 
-function buildAnalysisLink(analysis, params = {}) {
+function buildAnalysisLink(role, analysis, params = {}) {
     const query = new URLSearchParams({ analysis });
     Object.entries(params).forEach(([key, value]) => {
         if (value) {
             query.set(key, String(value));
         }
     });
-    return `/professor/analysis-center?${query.toString()}`;
+    return `${buildRolePath(role, 'analysis-center')}?${query.toString()}`;
 }
 
 export function ProfessorDashboard() {
@@ -52,6 +52,8 @@ export function ProfessorDashboard() {
     const [selectedStudentId, setSelectedStudentId] = useState(null);
 
     const roleMeta = useMemo(() => getRoleMeta(user?.role), [user?.role]);
+    const historicalDataRoute = buildRolePath(user?.role, 'historical-data');
+    const analysisRoute = buildRolePath(user?.role, 'analysis-center');
 
     useEffect(() => {
         async function fetchData() {
@@ -98,12 +100,12 @@ export function ProfessorDashboard() {
                 icon={GraduationCap}
                 actions={(
                     <>
-                        <Link to="/professor/historical-data">
+                        <Link to={historicalDataRoute}>
                             <Button variant="secondary" icon={Upload}>
                                 Subir nova base
                             </Button>
                         </Link>
-                        <Link to="/professor/analysis-center?analysis=overview">
+                        <Link to={`${analysisRoute}?analysis=overview`}>
                             <Button icon={BrainCircuit}>
                                 Abrir analises
                             </Button>
@@ -214,7 +216,7 @@ export function ProfessorDashboard() {
                         </p>
                         <div className="mt-4 space-y-3">
                             <Link
-                                to="/professor/analysis-center?analysis=risk_topics"
+                                to={`${analysisRoute}?analysis=risk_topics`}
                                 className="flex items-center justify-between rounded-[20px] border border-border-subtle bg-bg-secondary/50 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                             >
                                 <div>
@@ -224,7 +226,7 @@ export function ProfessorDashboard() {
                                 <ArrowRight className="h-4 w-4 text-accent-blue" />
                             </Link>
                             <Link
-                                to="/professor/analysis-center?analysis=by_class"
+                                to={`${analysisRoute}?analysis=by_class`}
                                 className="flex items-center justify-between rounded-[20px] border border-border-subtle bg-bg-secondary/50 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                             >
                                 <div>
@@ -234,7 +236,7 @@ export function ProfessorDashboard() {
                                 <ArrowRight className="h-4 w-4 text-accent-blue" />
                             </Link>
                             <Link
-                                to="/professor/historical-data"
+                                to={historicalDataRoute}
                                 className="flex items-center justify-between rounded-[20px] border border-border-subtle bg-bg-secondary/50 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                             >
                                 <div>
@@ -254,7 +256,7 @@ export function ProfessorDashboard() {
                     title="Falta a base historica para destravar o melhor dashboard docente"
                     description="Suba planilhas ou PDFs de turmas anteriores para liberar comparativos, turmas criticas, assuntos em risco e analises por semestre."
                     action={(
-                        <Link to="/professor/historical-data">
+                        <Link to={historicalDataRoute}>
                             <Button icon={Upload}>Ir para upload</Button>
                         </Link>
                     )}
@@ -273,7 +275,7 @@ export function ProfessorDashboard() {
                             {criticalClasses.slice(0, 5).map((item) => (
                                 <Link
                                     key={item.id}
-                                    to={buildAnalysisLink('by_class', { subject: item.subject, semester: item.semester })}
+                                    to={buildAnalysisLink(user?.role, 'by_class', { subject: item.subject, semester: item.semester })}
                                     className="block rounded-[22px] border border-border-subtle bg-bg-secondary/45 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                                 >
                                     <div className="flex items-start justify-between gap-3">
@@ -314,7 +316,7 @@ export function ProfessorDashboard() {
                             {criticalSubjects.map((item) => (
                                 <Link
                                     key={item.id}
-                                    to={buildAnalysisLink('risk_topics', { subject: item.label })}
+                                    to={buildAnalysisLink(user?.role, 'risk_topics', { subject: item.label })}
                                     className="block rounded-[22px] border border-border-subtle bg-bg-secondary/45 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                                 >
                                     <div className="flex items-start justify-between gap-3">

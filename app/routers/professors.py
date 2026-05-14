@@ -25,6 +25,58 @@ from app.security.audit import audit_logger
 router = APIRouter(tags=["Professores"])
 
 
+ALLOWED_PROFESSOR_ROLES = (UserRole.PROFESSOR, UserRole.ADMIN)
+
+
+def _ensure_professor_like_access(current_user: User):
+    if current_user.role not in ALLOWED_PROFESSOR_ROLES:
+        raise HTTPException(status_code=403, detail="Acesso restrito a professores e pro-reitoria")
+
+
+def _resolve_professor_profile(db: Session, current_user: User, create_for_admin: bool = False) -> Professor | None:
+    professor = (
+        db.query(Professor)
+        .options(
+            joinedload(Professor.professor_courses),
+            joinedload(Professor.academic_courses),
+        )
+        .filter(Professor.user_id == current_user.id)
+        .first()
+    )
+    if professor or not create_for_admin or current_user.role != UserRole.ADMIN:
+        return professor
+
+    professor = Professor(user_id=current_user.id, phone=None)
+    db.add(professor)
+    db.flush()
+    db.refresh(professor)
+    return professor
+
+
+def _get_professor_academic_courses(db: Session, professor: Professor | None, current_user: User) -> list[str]:
+    academic_course_names = [ac.course_name for ac in (professor.academic_courses if professor else []) if ac.course_name]
+    if academic_course_names or current_user.role != UserRole.ADMIN:
+        return academic_course_names
+
+    rows = db.query(Student.course_name).filter(
+        Student.status == StudentStatus.ACTIVE,
+        Student.course_name.isnot(None),
+    ).distinct().all()
+    return sorted({row[0] for row in rows if row[0]})
+
+
+def _get_professor_course_records(db: Session, professor: Professor | None, current_user: User) -> list[Course]:
+    if professor and professor.professor_courses:
+        course_ids = [pc.course_id for pc in professor.professor_courses if pc.course_id]
+        if course_ids:
+            return db.query(Course).filter(Course.id.in_(course_ids)).all()
+
+    if current_user.role == UserRole.ADMIN:
+        return db.query(Course).order_by(Course.name.asc()).all()
+
+    return []
+
+
 # ═══════════════════════════════════════════════
 # ENDPOINTS DO PROFESSOR
 # ═══════════════════════════════════════════════
@@ -35,22 +87,20 @@ def get_my_profile(
     current_user: User = Depends(get_current_user),
 ):
     """Retorna perfil do professor logado."""
-    if current_user.role != UserRole.PROFESSOR:
-        raise HTTPException(status_code=403, detail="Acesso restrito a professores")
+    _ensure_professor_like_access(current_user)
 
-    professor = db.query(Professor).filter(Professor.user_id == current_user.id).first()
+    professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
 
     # Carregar cursos (matérias/disciplinas)
     courses = []
-    for pc in professor.professor_courses:
-        course = db.query(Course).filter(Course.id == pc.course_id).first()
+    for course in _get_professor_course_records(db, professor, current_user):
         if course:
             courses.append({"id": course.id, "name": course.name, "code": course.code})
 
     # Carregar cursos acadêmicos (IA, Nutrição, etc)
-    academic_courses = [ac.course_name for ac in professor.academic_courses]
+    academic_courses = _get_professor_academic_courses(db, professor, current_user)
 
     return {
         "id": professor.id,
@@ -70,10 +120,9 @@ def update_my_academic_courses(
     current_user: User = Depends(get_current_user),
 ):
     """Atualiza os cursos acadêmicos (IA, Nutrição) que o professor atua."""
-    if current_user.role != UserRole.PROFESSOR:
-        raise HTTPException(status_code=403, detail="Acesso restrito a professores")
+    _ensure_professor_like_access(current_user)
 
-    professor = db.query(Professor).filter(Professor.user_id == current_user.id).first()
+    professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
 
@@ -93,7 +142,7 @@ def update_my_academic_courses(
 @router.get("/api/professors/me/students")
 def get_my_students(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.PROFESSOR)),
+    current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
     """
     Retorna alunos do professor, agrupados por disciplina.
@@ -104,17 +153,12 @@ def get_my_students(
     """
     from app.models.scraped_data import ScrapedGrade
 
-    professor = (
-        db.query(Professor)
-        .options(joinedload(Professor.professor_courses))
-        .filter(Professor.user_id == current_user.id)
-        .first()
-    )
+    professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
 
     # Obter cursos acadêmicos do professor (ex: "Inteligência Artificial")
-    academic_course_names = [ac.course_name for ac in professor.academic_courses]
+    academic_course_names = _get_professor_academic_courses(db, professor, current_user)
 
     # Coletar TODOS os alunos únicos que o professor deve ver
     seen_student_ids = set()
@@ -136,8 +180,7 @@ def get_my_students(
                 all_students.append(s)
 
     # Rota 2: Alunos via enrollment (dados manuais)  
-    for pc in professor.professor_courses:
-        course = db.query(Course).filter(Course.id == pc.course_id).first()
+    for course in _get_professor_course_records(db, professor, current_user):
         if not course:
             continue
         enrollments = db.query(Enrollment).filter(Enrollment.course_id == course.id).all()
@@ -154,8 +197,7 @@ def get_my_students(
     # Agora agrupar alunos por disciplina
     # Primeiro, coletar as disciplinas que o professor selecionou
     prof_subject_names = set()
-    for pc in professor.professor_courses:
-        course = db.query(Course).filter(Course.id == pc.course_id).first()
+    for course in _get_professor_course_records(db, professor, current_user):
         if course:
             prof_subject_names.add(course.name)
 
@@ -219,10 +261,10 @@ def get_my_students(
 def update_my_courses(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.PROFESSOR)),
+    current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
 
-    professor = db.query(Professor).filter(Professor.user_id == current_user.id).first()
+    professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
 
@@ -292,10 +334,9 @@ def get_my_overview(
     matriculados nas disciplinas do professor logado.
     Aceita course_id opcional para filtrar por disciplina específica.
     """
-    if current_user.role != UserRole.PROFESSOR:
-        raise HTTPException(status_code=403, detail="Acesso restrito a professores")
+    _ensure_professor_like_access(current_user)
 
-    professor = db.query(Professor).filter(Professor.user_id == current_user.id).first()
+    professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
 
@@ -311,11 +352,11 @@ def get_my_overview(
 
     # Obter nomes das disciplinas selecionadas
     discipline_names = []
-    prof_course_ids = [pc.course_id for pc in professor.professor_courses]
-    for cid in prof_course_ids:
-        c = db.query(Course).filter(Course.id == cid).first()
-        if c:
-            discipline_names.append(c.name)
+    prof_courses = _get_professor_course_records(db, professor, current_user)
+    prof_course_ids = [course.id for course in prof_courses]
+    for course in prof_courses:
+        if course.name:
+            discipline_names.append(course.name)
 
     if course_id:
         # Validar que o curso pertence ao professor
@@ -356,6 +397,10 @@ def get_my_overview(
             seen_ids.add(sid)
 
     student_ids = list(seen_ids)
+
+    if not student_ids and current_user.role == UserRole.ADMIN:
+        active_students = db.query(Student).filter(Student.status == StudentStatus.ACTIVE).all()
+        student_ids = [student.id for student in active_students]
 
     if not student_ids:
         return {
@@ -446,11 +491,11 @@ def list_available_courses(
     Retorna apenas disciplinas que têm dados de scraping de alunos matriculados
     nos cursos acadêmicos selecionados pelo professor.
     """
-    professor = db.query(Professor).filter(Professor.user_id == current_user.id).first()
+    professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         return []
 
-    academic_course_names = [ac.course_name for ac in professor.academic_courses]
+    academic_course_names = _get_professor_academic_courses(db, professor, current_user)
     
     if not academic_course_names:
         return []

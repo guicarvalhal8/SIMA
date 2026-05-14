@@ -21,8 +21,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StudentDetailModal } from '@/components/StudentDetailModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { buildRolePath } from '@/lib/app-shell';
 
 export function ProfessorCourses() {
+    const { user } = useAuth();
     const [profile, setProfile] = useState(null);
     const [availableCourses, setAvailableCourses] = useState([]);
     const [selectedIds, setSelectedIds] = useState(new Set());
@@ -90,6 +93,7 @@ export function ProfessorCourses() {
     ), [selectedIds, subjectStudents]);
 
     const totalStudents = selectedSubjects.reduce((sum, item) => sum + (item.students?.length || 0), 0);
+    const profileRoute = buildRolePath(user?.role, 'profile');
 
     function toggleCourse(courseId) {
         setSelectedIds((previous) => {
@@ -290,7 +294,7 @@ export function ProfessorCourses() {
                             title="Nenhuma disciplina encontrada"
                             description="Revise sua busca ou confira se seus cursos academicos foram selecionados no perfil."
                             action={(
-                                <Link to="/professor/profile">
+                                <Link to={profileRoute}>
                                     <Button variant="secondary">Abrir meu perfil</Button>
                                 </Link>
                             )}
@@ -305,7 +309,7 @@ export function ProfessorCourses() {
                     title="Primeiro selecione os cursos academicos"
                     description="Sem essa definicao no perfil, o sistema nao consegue listar corretamente as disciplinas disponiveis para docencia."
                     action={(
-                        <Link to="/professor/profile">
+                        <Link to={profileRoute}>
                             <Button>Ir para meu perfil</Button>
                         </Link>
                     )}

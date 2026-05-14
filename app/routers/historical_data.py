@@ -277,7 +277,7 @@ def _parse_csv(content: bytes) -> Any:
 async def upload_historical_spreadsheet(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.PROFESSOR)),
+    current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
     content = await file.read()
     filename = (file.filename or "").lower()
@@ -390,7 +390,7 @@ async def upload_historical_spreadsheet(
 @router.delete("/clear")
 def clear_historical_records(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.PROFESSOR)),
+    current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
     deleted = db.query(HistoricalRecord).filter(
         HistoricalRecord.professor_id == current_user.id
@@ -589,7 +589,7 @@ def export_historical_analysis_workspace(
 async def chat_about_spreadsheet(
     request: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.PROFESSOR)),
+    current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
     message = request.get("message", "")
     file_content = request.get("file_content", "")
@@ -615,7 +615,7 @@ async def chat_about_spreadsheet(
 async def generate_historical_insights(
     request: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.PROFESSOR)),
+    current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
     message = request.get("message", "").strip()
     if not message:

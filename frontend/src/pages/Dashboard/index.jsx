@@ -98,7 +98,7 @@ export function Dashboard() {
         <div className="space-y-6">
             <PageHeader
                 title="Visao institucional da NEXORA"
-                subtitle="Indicadores globais para reitoria, com foco em risco academico, desempenho medio e capacidade de resposta institucional."
+                subtitle="Indicadores globais para pro-reitoria, com foco em risco academico, desempenho medio e capacidade de resposta institucional."
                 icon={Shield}
             />
 

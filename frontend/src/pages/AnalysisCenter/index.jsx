@@ -35,6 +35,7 @@ import {
 
 import api from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { buildRolePath, isProfessorLikeRole } from '@/lib/app-shell';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -1481,7 +1482,7 @@ export function AnalysisCenter() {
     const { user } = useAuth();
     const role = user?.role?.toLowerCase();
     const isCoordinator = role === 'coordinator';
-    const historyRoute = role === 'professor' ? '/professor/historical-data' : '/coordinator/dashboard';
+    const historyRoute = isProfessorLikeRole(role) ? buildRolePath(role, 'historical-data') : '/coordinator/dashboard';
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
 

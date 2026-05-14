@@ -167,7 +167,7 @@ function AuthShell({ children }) {
                                 Monitoramento academico com identidade unica da NEXORA.
                             </h2>
                             <p className="mt-4 max-w-xl text-sm leading-7 text-text-secondary">
-                                KPIs, alertas, predições e apoio a decisao para aluno, professor, coordenacao e reitoria em um unico ambiente.
+                                KPIs, alertas, predições e apoio a decisao para aluno, professor, coordenacao e pro-reitoria em um unico ambiente.
                             </p>
                             <div className="mt-8 grid gap-4 sm:grid-cols-2">
                                 <AuthFeature title="Leitura institucional" description="Hierarquia visual clara para decisao academica." />

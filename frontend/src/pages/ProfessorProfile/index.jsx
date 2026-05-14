@@ -11,6 +11,7 @@ import {
     AlertCircle, UserCircle, GraduationCap, ChevronRight, X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { buildRolePath } from '@/lib/app-shell';
 
 const AVAILABLE_COURSES = [
     "Administração", "Agronomia", "Análise e Desenvolvimento de Sistemas",
@@ -25,6 +26,7 @@ const AVAILABLE_COURSES = [
 
 export function ProfessorProfile() {
     const { user } = useAuth();
+    const coursesRoute = buildRolePath(user?.role, 'courses');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -361,7 +363,7 @@ export function ProfessorProfile() {
                                 <p className="text-[10px] text-center text-gray-500">e mais {courses.length - 5} outras...</p>
                             )}
                         </div>
-                        <Link to="/professor/courses">
+                        <Link to={coursesRoute}>
                             <Button variant="outline" className="w-full text-xs py-2 flex items-center justify-center gap-2 group">
                                 Gerenciar Disciplinas
                                 <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />

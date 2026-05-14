@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 
 import api from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { buildRolePath } from '@/lib/app-shell';
 import { StudentDetailModal } from '@/components/StudentDetailModal';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -26,15 +28,16 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 
-function buildAnalysisLink(analysis, params = {}) {
+function buildAnalysisLink(basePath, analysis, params = {}) {
     const query = new URLSearchParams({ analysis });
     Object.entries(params).forEach(([key, value]) => {
         if (value) query.set(key, String(value));
     });
-    return `/professor/analysis-center?${query.toString()}`;
+    return `${basePath}?${query.toString()}`;
 }
 
 export function HistoricalData() {
+    const { user } = useAuth();
     const [records, setRecords] = useState([]);
     const [filters, setFilters] = useState({ semesters: [], courses: [], subjects: [] });
     const [workspace, setWorkspace] = useState(null);
@@ -137,6 +140,8 @@ export function HistoricalData() {
     const highRiskClasses = workspace?.analysis_data?.high_risk_classes?.slice(0, 4) || [];
     const uploadSummary = uploadStatus?.payload?.summary;
     const totalRecords = workspace?.overview?.total_records || 0;
+    const analysisRoute = buildRolePath(user?.role, 'analysis-center');
+
     const groupedRecords = useMemo(
         () => buildGroupedRecords(records, { searchTerm, showAttentionOnly }),
         [records, searchTerm, showAttentionOnly],
@@ -335,7 +340,7 @@ export function HistoricalData() {
                                 {highlightedTopics.map((item) => (
                                     <Link
                                         key={item.id}
-                                        to={buildAnalysisLink('risk_topics', item.type === 'Disciplina' ? { subject: item.label } : { semester: item.semester })}
+                                        to={buildAnalysisLink(analysisRoute, 'risk_topics', item.type === 'Disciplina' ? { subject: item.label } : { semester: item.semester })}
                                         className="block rounded-[22px] border border-border-subtle bg-bg-secondary/45 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                                     >
                                         <div className="flex items-center justify-between gap-3">
@@ -358,7 +363,7 @@ export function HistoricalData() {
                                 {highRiskClasses.map((item) => (
                                     <Link
                                         key={item.id}
-                                        to={buildAnalysisLink('by_class', { subject: item.subject, semester: item.semester })}
+                                        to={buildAnalysisLink(analysisRoute, 'by_class', { subject: item.subject, semester: item.semester })}
                                         className="block rounded-[22px] border border-border-subtle bg-bg-secondary/45 px-4 py-4 transition hover:border-border-hover hover:bg-white"
                                     >
                                         <div className="flex items-center justify-between gap-3">
@@ -448,7 +453,7 @@ export function HistoricalData() {
                                                 </p>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
-                                                <Link to={buildAnalysisLink('by_class', { subject: group.subject, semester: group.semester })}>
+                                                <Link to={buildAnalysisLink(analysisRoute, 'by_class', { subject: group.subject, semester: group.semester })}>
                                                     <Button size="sm" variant="secondary">
                                                         Abrir analise da turma
                                                     </Button>

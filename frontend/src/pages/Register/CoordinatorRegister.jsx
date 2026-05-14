@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import api from '@/services/api';
 import {
-    User, Lock, Mail, Phone, BookOpen, Hash,
+    User, Lock, Mail, Phone, BookOpen, Hash, Search,
     ArrowLeft, ArrowRight, CheckCircle, AlertCircle, Shield
 } from 'lucide-react';
 
@@ -15,6 +15,8 @@ export function CoordinatorRegister() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [courseSearch, setCourseSearch] = useState('');
+    const [showCourseDropdown, setShowCourseDropdown] = useState(false);
 
     // Mesma lista de cursos acadêmicos usada no cadastro de aluno
     const availableAcademicCourses = [
@@ -221,36 +223,73 @@ export function CoordinatorRegister() {
                             onChange={e => updateField('phone', e.target.value)}
                         />
 
-                        {/* Seleção do Curso que Coordena */}
-                        <div>
+                        <div className="relative">
                             <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Curso que você coordena
+                                Curso que voce coordena
                             </label>
-                            {availableAcademicCourses.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                                    {availableAcademicCourses.map(courseName => (
-                                        <label
-                                            key={courseName}
-                                            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all duration-200 ${form.academic_course_name === courseName
-                                                ? 'border-accent-amber/40 bg-accent-amber/8'
-                                                : 'border-border-subtle bg-bg-elevated/30 hover:bg-bg-elevated/60'
-                                                }`}
+
+                            {form.academic_course_name && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-accent-amber/15 text-accent-amber border border-accent-amber/20">
+                                        {form.academic_course_name}
+                                        <button
+                                            type="button"
+                                            onClick={() => { updateField('academic_course_name', ''); setCourseSearch(''); }}
+                                            className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-accent-amber/20 transition-colors cursor-pointer"
                                         >
-                                            <input
-                                                type="radio"
-                                                name="academic_course"
-                                                checked={form.academic_course_name === courseName}
-                                                onChange={() => updateField('academic_course_name', courseName)}
-                                                className="w-4 h-4 accent-accent-amber"
-                                            />
-                                            <span className="text-sm text-text-primary">{courseName}</span>
-                                        </label>
-                                    ))}
+                                            x
+                                        </button>
+                                    </span>
                                 </div>
-                            ) : (
-                                <p className="text-xs text-text-secondary italic p-4 text-center glass-card">
-                                    Carregando cursos disponíveis...
-                                </p>
+                            )}
+
+                            <Input
+                                placeholder="Digite o nome do curso para buscar..."
+                                icon={Search}
+                                value={courseSearch}
+                                onChange={e => setCourseSearch(e.target.value)}
+                                onFocus={() => setShowCourseDropdown(true)}
+                            />
+
+                            {showCourseDropdown && (
+                                <div className="fixed inset-0 z-40" onClick={() => setShowCourseDropdown(false)} />
+                            )}
+
+                            {showCourseDropdown && courseSearch && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    className="absolute z-50 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-border-subtle bg-white/95 shadow-card-hover backdrop-blur-xl custom-scrollbar"
+                                >
+                                    {availableAcademicCourses
+                                        .filter(course => course.toLowerCase().includes(courseSearch.toLowerCase()))
+                                        .map((course, index) => (
+                                            <button
+                                                key={`${course}-${index}`}
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    updateField('academic_course_name', course);
+                                                    setCourseSearch(course);
+                                                    setShowCourseDropdown(false);
+                                                }}
+                                                className="w-full text-left px-5 py-3.5 text-sm text-text-primary hover:bg-accent-amber/15 transition-all border-b border-border-subtle/20 last:border-0 flex items-center justify-between group"
+                                            >
+                                                <span>{course}</span>
+                                                <div className="w-5 h-5 rounded-lg bg-accent-amber/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <CheckCircle className="w-3 h-3 text-accent-amber" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    {availableAcademicCourses.filter(course => course.toLowerCase().includes(courseSearch.toLowerCase())).length === 0 && (
+                                        <div className="px-6 py-6 text-center">
+                                            <BookOpen className="w-8 h-8 mx-auto mb-2 text-text-secondary/20" />
+                                            <p className="text-xs text-text-secondary italic">
+                                                Nenhum curso encontrado
+                                            </p>
+                                        </div>
+                                    )}
+                                </motion.div>
                             )}
                         </div>
 

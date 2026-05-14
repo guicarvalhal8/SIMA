@@ -36,7 +36,7 @@ function App() {
 
                     {/* Protegido */}
                     <Route path="/" element={<Layout />}>
-                        {/* Admin/Coordinator/Viewer routes */}
+                        {/* Viewer routes */}
                         <Route index element={<Dashboard />} />
                         <Route path="students" element={<StudentsList />} />
                         <Route path="analytics" element={<Analytics />} />
@@ -54,6 +54,13 @@ function App() {
                         <Route path="professor/profile" element={<ProfessorProfile />} />
                         <Route path="professor/historical-data" element={<HistoricalData />} />
                         <Route path="professor/analysis-center" element={<AnalysisCenter />} />
+
+                        {/* Proreitor routes */}
+                        <Route path="proreitor/dashboard" element={<ProfessorDashboard />} />
+                        <Route path="proreitor/courses" element={<ProfessorCourses />} />
+                        <Route path="proreitor/profile" element={<ProfessorProfile />} />
+                        <Route path="proreitor/historical-data" element={<HistoricalData />} />
+                        <Route path="proreitor/analysis-center" element={<AnalysisCenter />} />
 
                         {/* Coordinator routes */}
                         <Route path="coordinator/dashboard" element={<CoordinatorDashboard />} />

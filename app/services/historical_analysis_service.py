@@ -190,7 +190,7 @@ class HistoricalAnalysisService:
             "role": current_user.role.value.lower(),
             "label": "Leitura restrita",
             "description": "Base historica filtrada pelo seu nivel de acesso.",
-            "can_upload": current_user.role == UserRole.PROFESSOR,
+            "can_upload": current_user.role in (UserRole.PROFESSOR, UserRole.ADMIN),
             "access_level": "restricted",
             "course_name": None,
         }
@@ -240,8 +240,8 @@ class HistoricalAnalysisService:
         elif current_user.role == UserRole.ADMIN:
             scoped = all_records
             scope.update({
-                "label": "Analises institucionais",
-                "description": "Leitura completa da base historica institucional.",
+                "label": "Analises da pro-reitoria",
+                "description": "Leitura ampliada da base historica, com acesso a upload e analises docentes em escala institucional.",
                 "access_level": "institutional",
             })
         else:
