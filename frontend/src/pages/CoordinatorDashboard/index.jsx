@@ -1,37 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Card } from '@/components/ui/Card';
-import api from '@/services/api';
 import {
-    Users, BookOpen, TrendingUp, AlertTriangle,
-    GraduationCap, BarChart3, Shield, ArrowUpRight
+    AlertTriangle,
+    BarChart3,
+    BookOpen,
+    GraduationCap,
+    Shield,
+    TrendingUp,
+    Users,
 } from 'lucide-react';
+import api from '@/services/api';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StudentDetailModal } from '@/components/StudentDetailModal';
+
+const riskStyles = {
+    low: 'bg-success/10 text-success border-success/15',
+    medium: 'bg-amber-100 text-amber-800 border-amber-200',
+    high: 'bg-danger/10 text-danger border-danger/15',
+    critical: 'bg-danger/10 text-danger border-danger/15',
+};
 
 export function CoordinatorDashboard() {
     const [overview, setOverview] = useState(null);
-    const [students, setStudents] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
             try {
-                const [profileRes, overviewRes, studentsRes, subjectsRes] = await Promise.allSettled([
+                const [profileRes, overviewRes, subjectsRes] = await Promise.allSettled([
                     api.get('/coordinators/me'),
                     api.get('/coordinators/me/overview'),
-                    api.get('/coordinators/me/students'),
                     api.get('/coordinators/me/subjects'),
                 ]);
 
                 if (profileRes.status === 'fulfilled') setProfile(profileRes.value.data);
                 if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
-                if (studentsRes.status === 'fulfilled') setStudents(studentsRes.value.data);
                 if (subjectsRes.status === 'fulfilled') setSubjects(subjectsRes.value.data);
-            } catch (err) {
-                console.error('Erro ao carregar dados:', err);
+            } catch (error) {
+                console.error('Erro ao carregar painel do coordenador', error);
             } finally {
                 setLoading(false);
             }
@@ -40,223 +53,193 @@ export function CoordinatorDashboard() {
         fetchData();
     }, []);
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 border-accent-amber border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
-
     const kpis = overview?.kpis || {};
     const riskSummary = overview?.risk_summary || {};
     const topAtRisk = overview?.top_at_risk || [];
+    const riskBlocks = useMemo(() => ([
+        { key: 'low', label: 'Baixo risco', value: riskSummary.low || 0 },
+        { key: 'medium', label: 'Risco moderado', value: riskSummary.medium || 0 },
+        { key: 'high', label: 'Risco alto', value: riskSummary.high || 0 },
+        { key: 'critical', label: 'Risco critico', value: riskSummary.critical || 0 },
+    ]), [riskSummary.critical, riskSummary.high, riskSummary.low, riskSummary.medium]);
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="space-y-6"
-        >
+        <div className="space-y-6">
             <PageHeader
-                title={`Painel do Coordenador`}
-                subtitle={profile ? `Curso: ${profile.academic_course_name}` : 'Carregando...'}
+                title="Coordenacao de curso"
+                subtitle={profile?.academic_course_name
+                    ? `Visao academica consolidada do curso ${profile.academic_course_name}, com leitura de desempenho, risco e disciplinas prioritarias.`
+                    : 'Visao academica consolidada do curso, com leitura de desempenho, risco e disciplinas prioritarias.'}
                 icon={Shield}
+                actions={profile?.academic_course_name ? (
+                    <Badge variant="purple">{profile.academic_course_name}</Badge>
+                ) : null}
             />
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-accent-blue" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">Total Alunos</p>
-                            <p className="text-2xl font-bold text-accent-blue">{kpis.total_students || 0}</p>
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-accent-emerald/10 flex items-center justify-center">
-                            <TrendingUp className="w-5 h-5 text-accent-emerald" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">Média Geral (GPA)</p>
-                            <p className="text-2xl font-bold text-accent-emerald">{kpis.average_gpa || '0.0'}</p>
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-accent-amber/10 flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-accent-amber" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">Disciplinas</p>
-                            <p className="text-2xl font-bold text-accent-amber">{kpis.total_subjects || 0}</p>
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-accent-rose/10 flex items-center justify-center">
-                            <AlertTriangle className="w-5 h-5 text-accent-rose" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">Em Risco</p>
-                            <p className="text-2xl font-bold text-accent-rose">{kpis.at_risk_count || 0}</p>
-                        </div>
-                    </div>
-                </Card>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="Total de alunos" value={loading ? '...' : kpis.total_students || 0} icon={Users} tone="purple" helper="Base vinculada a coordenacao" />
+                <MetricCard title="GPA medio" value={loading ? '...' : Number(kpis.average_gpa || 0).toFixed(2)} icon={TrendingUp} tone="blue" helper="Desempenho agregado do curso" />
+                <MetricCard title="Disciplinas monitoradas" value={loading ? '...' : kpis.total_subjects || 0} icon={BookOpen} tone="amber" helper="Oferta academica acompanhada" />
+                <MetricCard title="Casos em risco" value={loading ? '...' : kpis.at_risk_count || 0} icon={AlertTriangle} tone="rose" helper="Alunos com prioridade de intervencao" />
             </div>
 
-            {/* Risk Summary + Attendance/Pass Rate */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6">
-                    <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-accent-purple" />
-                        Distribuição de Risco
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                        {[
-                            { label: 'Baixo', value: riskSummary.low || 0, color: 'accent-emerald' },
-                            { label: 'Médio', value: riskSummary.medium || 0, color: 'accent-amber' },
-                            { label: 'Alto', value: riskSummary.high || 0, color: 'accent-rose' },
-                            { label: 'Crítico', value: riskSummary.critical || 0, color: 'red-500' },
-                        ].map(item => (
-                            <div key={item.label} className={`p-3 rounded-xl bg-${item.color}/5 border border-${item.color}/10`}>
-                                <p className="text-xs text-text-secondary">{item.label}</p>
-                                <p className={`text-xl font-bold text-${item.color}`}>{item.value}</p>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                <Card>
+                    <CardHeader
+                        title="Mapa de risco do curso"
+                        subtitle="Distribuicao atual dos niveis de atencao academica"
+                        icon={BarChart3}
+                    />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {riskBlocks.map((item) => (
+                            <div key={item.key} className={`rounded-[22px] border p-4 ${riskStyles[item.key]}`}>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">{item.label}</p>
+                                <p className="mt-3 text-3xl font-semibold">{item.value}</p>
                             </div>
                         ))}
                     </div>
                 </Card>
 
-                <Card className="p-6">
-                    <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4 text-accent-blue" />
-                        Indicadores Gerais
-                    </h3>
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-text-secondary">Taxa de Aprovação</span>
-                            <span className="text-lg font-bold text-accent-emerald">
-                                {(kpis.pass_rate || 0).toFixed(1)}%
-                            </span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-bg-elevated overflow-hidden">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-accent-emerald to-accent-blue transition-all duration-500"
-                                style={{ width: `${Math.min(kpis.pass_rate || 0, 100)}%` }}
-                            />
-                        </div>
-                        <div className="flex justify-between items-center mt-4">
-                            <span className="text-sm text-text-secondary">Frequência Média</span>
-                            <span className="text-lg font-bold text-accent-blue">
-                                {(kpis.average_attendance_rate || 0).toFixed(1)}%
-                            </span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-bg-elevated overflow-hidden">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-accent-blue to-accent-purple transition-all duration-500"
-                                style={{ width: `${Math.min(kpis.average_attendance_rate || 0, 100)}%` }}
-                            />
-                        </div>
+                <Card>
+                    <CardHeader
+                        title="Indicadores estruturantes"
+                        subtitle="Taxa de aprovacao e frequencia media do curso"
+                        icon={GraduationCap}
+                    />
+                    <div className="space-y-6">
+                        <ProgressLine
+                            label="Taxa de aprovacao"
+                            value={Number(kpis.pass_rate || 0)}
+                            tone="emerald"
+                        />
+                        <ProgressLine
+                            label="Frequencia media"
+                            value={Number(kpis.average_attendance_rate || 0)}
+                            tone="blue"
+                        />
                     </div>
                 </Card>
             </div>
 
-            {/* Top At Risk Students */}
-            {topAtRisk.length > 0 && (
-                <Card className="p-6">
-                    <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-accent-rose" />
-                        Alunos em Maior Risco
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="text-left text-xs text-text-secondary border-b border-border-subtle">
-                                    <th className="pb-3 pr-4">Aluno</th>
-                                    <th className="pb-3 pr-4">Matrícula</th>
-                                    <th className="pb-3 pr-4">GPA</th>
-                                    <th className="pb-3 pr-4">Frequência</th>
-                                    <th className="pb-3">Risco</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {topAtRisk.slice(0, 10).map((s, i) => (
-                                    <motion.tr
-                                        key={s.student_id}
-                                        initial={{ opacity: 0, y: 5 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: i * 0.03 }}
-                                        className="border-b border-border-subtle/50 last:border-0"
-                                    >
-                                        <td className="py-3 pr-4 text-sm text-text-primary font-medium">{s.student_name}</td>
-                                        <td className="py-3 pr-4 text-sm text-text-secondary">{s.registration_number}</td>
-                                        <td className="py-3 pr-4 text-sm">
-                                            <span className={s.gpa < 5 ? 'text-accent-rose font-semibold' : 'text-text-primary'}>
-                                                {s.gpa.toFixed(1)}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 pr-4 text-sm">
-                                            <span className={s.attendance_rate < 75 ? 'text-accent-amber font-semibold' : 'text-text-primary'}>
-                                                {s.attendance_rate.toFixed(1)}%
-                                            </span>
-                                        </td>
-                                        <td className="py-3">
-                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${s.risk_level === 'critical' ? 'bg-red-500/10 text-red-500' :
-                                                    s.risk_level === 'high' ? 'bg-accent-rose/10 text-accent-rose' :
-                                                        s.risk_level === 'medium' ? 'bg-accent-amber/10 text-accent-amber' :
-                                                            'bg-accent-emerald/10 text-accent-emerald'
-                                                }`}>
-                                                {s.risk_level === 'critical' ? 'Crítico' :
-                                                    s.risk_level === 'high' ? 'Alto' :
-                                                        s.risk_level === 'medium' ? 'Médio' : 'Baixo'}
-                                            </span>
-                                        </td>
-                                    </motion.tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            )}
+            <Card>
+                <CardHeader
+                    title="Alunos em maior prioridade"
+                    subtitle="Casos com maior necessidade de acao da coordenacao"
+                    icon={AlertTriangle}
+                />
 
-            {/* Subjects Overview */}
-            {subjects.length > 0 && (
-                <Card className="p-6">
-                    <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-accent-amber" />
-                        Disciplinas do Curso ({subjects.length})
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {subjects.map((subject, i) => (
+                {topAtRisk.length > 0 ? (
+                    <div className="space-y-3">
+                        {topAtRisk.slice(0, 10).map((student, index) => (
                             <motion.div
-                                key={subject.course_id}
-                                initial={{ opacity: 0, y: 5 }}
+                                key={student.student_id}
+                                className="grid gap-4 rounded-[22px] border border-border-subtle bg-bg-secondary/50 p-4 lg:grid-cols-[1.5fr_repeat(3,0.55fr)_0.55fr]"
+                                initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.03 }}
-                                className="p-4 rounded-xl border border-border-subtle bg-bg-elevated/30 hover:bg-bg-elevated/60 transition-all"
+                                transition={{ delay: index * 0.03 }}
                             >
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-text-primary">{subject.course_name}</p>
-                                        <p className="text-xs text-text-secondary mt-0.5">{subject.course_code}</p>
-                                    </div>
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-accent-blue/10 text-accent-blue font-medium">
-                                        {subject.students.length} alunos
-                                    </span>
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedStudentId(student.student_id)}
+                                        className="text-left text-sm font-semibold text-text-primary transition-colors hover:text-accent-blue"
+                                    >
+                                        {student.student_name}
+                                    </button>
+                                    <p className="mt-1 text-sm text-text-secondary">{student.registration_number}</p>
+                                </div>
+                                <InlineMetric label="GPA" value={student.gpa?.toFixed(1) || '--'} />
+                                <InlineMetric label="Frequencia" value={`${student.attendance_rate?.toFixed(1) || '--'}%`} />
+                                <InlineMetric label="Score" value={`${((student.risk_score || 0) * 100).toFixed(0)}%`} />
+                                <div className="flex items-center lg:justify-end">
+                                    <Badge variant={student.risk_level === 'critical' ? 'danger' : student.risk_level === 'high' ? 'purple' : student.risk_level === 'medium' ? 'warning' : 'success'}>
+                                        {student.risk_level}
+                                    </Badge>
                                 </div>
                             </motion.div>
                         ))}
                     </div>
-                </Card>
-            )}
-        </motion.div>
+                ) : (
+                    <EmptyState
+                        icon={AlertTriangle}
+                        title="Nenhum caso prioritario no momento"
+                        description="A base atual nao possui alunos classificados com necessidade imediata de intervencao."
+                    />
+                )}
+            </Card>
+
+            <Card>
+                <CardHeader
+                    title="Disciplinas do curso"
+                    subtitle="Visao rapida da oferta monitorada pela coordenacao"
+                    icon={BookOpen}
+                />
+
+                {subjects.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {subjects.map((subject, index) => (
+                            <motion.div
+                                key={subject.course_id}
+                                className="rounded-[22px] border border-border-subtle bg-bg-secondary/55 p-5"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.03 }}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-text-primary">{subject.course_name}</p>
+                                        <p className="mt-1 text-sm text-text-secondary">{subject.course_code}</p>
+                                    </div>
+                                    <Badge variant="info">{subject.students.length} alunos</Badge>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                ) : (
+                    <EmptyState
+                        icon={BookOpen}
+                        title="Sem disciplinas disponiveis"
+                        description="As disciplinas vinculadas ao curso serao exibidas aqui assim que forem carregadas pelo backend."
+                    />
+                )}
+            </Card>
+
+            <StudentDetailModal
+                studentId={selectedStudentId}
+                isOpen={selectedStudentId !== null}
+                onClose={() => setSelectedStudentId(null)}
+            />
+        </div>
+    );
+}
+
+function ProgressLine({ label, value, tone }) {
+    const tones = {
+        emerald: 'from-success to-accent-blue',
+        blue: 'from-accent-blue to-accent-purple',
+    };
+
+    return (
+        <div>
+            <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-text-primary">{label}</span>
+                <span className="text-sm text-text-secondary">{value.toFixed(1)}%</span>
+            </div>
+            <div className="h-3 rounded-full bg-bg-secondary">
+                <div
+                    className={`h-3 rounded-full bg-gradient-to-r ${tones[tone]}`}
+                    style={{ width: `${Math.min(value, 100)}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function InlineMetric({ label, value }) {
+    return (
+        <div className="rounded-2xl bg-white px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">{label}</p>
+            <p className="mt-1 text-sm font-semibold text-text-primary">{value}</p>
+        </div>
     );
 }

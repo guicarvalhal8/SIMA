@@ -2,43 +2,42 @@ import React from 'react';
 import clsx from 'clsx';
 
 const variantStyles = {
-    success: 'bg-accent-emerald/10 text-accent-emerald border-accent-emerald/20',
-    warning: 'bg-accent-amber/10 text-accent-amber border-accent-amber/20',
-    danger: 'bg-accent-rose/10 text-accent-rose border-accent-rose/20',
-    info: 'bg-accent-blue/10 text-accent-blue-light border-accent-blue/20',
-    neutral: 'bg-white/5 text-gray-400 border-white/10',
-    purple: 'bg-accent-purple/10 text-accent-purple-light border-accent-purple/20',
-    cyan: 'bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20',
+    success: 'bg-success/10 text-success border-success/15',
+    warning: 'bg-warning/10 text-warning border-warning/15',
+    attention: 'bg-amber-100 text-amber-800 border-amber-200',
+    danger: 'bg-danger/10 text-danger border-danger/15',
+    info: 'bg-accent-blue/10 text-accent-blue border-accent-blue/15',
+    neutral: 'bg-slate-200/55 text-text-secondary border-slate-300/60',
+    purple: 'bg-accent-purple/10 text-accent-purple border-accent-purple/15',
+    cyan: 'bg-accent-cyan/12 text-accent-blue border-accent-cyan/20',
 };
 
-export function Badge({ children, variant = 'neutral', dot = false, className }) {
+export function Badge({
+    children,
+    variant = 'neutral',
+    dot = false,
+    className,
+}) {
     return (
         <span
             className={clsx(
-                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border',
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]',
                 variantStyles[variant],
-                className
+                className,
             )}
         >
             {dot && (
-                <span className="relative flex h-2 w-2">
-                    <span className={clsx(
-                        'animate-ping absolute inline-flex h-full w-full rounded-full opacity-50',
-                        variant === 'success' && 'bg-accent-emerald',
-                        variant === 'warning' && 'bg-accent-amber',
-                        variant === 'danger' && 'bg-accent-rose',
-                        variant === 'info' && 'bg-accent-blue',
-                        variant === 'neutral' && 'bg-gray-400',
-                    )} />
-                    <span className={clsx(
-                        'relative inline-flex rounded-full h-2 w-2',
-                        variant === 'success' && 'bg-accent-emerald',
-                        variant === 'warning' && 'bg-accent-amber',
-                        variant === 'danger' && 'bg-accent-rose',
-                        variant === 'info' && 'bg-accent-blue',
-                        variant === 'neutral' && 'bg-gray-400',
-                    )} />
-                </span>
+                <span className={clsx(
+                    'h-2 w-2 rounded-full',
+                    variant === 'success' && 'bg-success',
+                    variant === 'warning' && 'bg-warning',
+                    variant === 'attention' && 'bg-amber-500',
+                    variant === 'danger' && 'bg-danger',
+                    variant === 'info' && 'bg-accent-blue',
+                    variant === 'purple' && 'bg-accent-purple',
+                    variant === 'cyan' && 'bg-accent-cyan',
+                    variant === 'neutral' && 'bg-text-tertiary',
+                )} />
             )}
             {children}
         </span>

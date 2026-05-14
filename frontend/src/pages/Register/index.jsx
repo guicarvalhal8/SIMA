@@ -32,14 +32,14 @@ export function RegisterSelect() {
                                 animate={{ rotate: [0, 2, -2, 0] }}
                                 transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
                             >
-                                S
+                                N
                             </motion.div>
                             <div className="absolute -inset-3 rounded-3xl bg-gradient-to-br from-accent-blue/15 to-accent-purple/15 blur-xl -z-10 animate-pulse-glow" />
                         </div>
 
-                        <h1 className="text-3xl font-bold mt-6 gradient-text">Cadastre-se</h1>
+                        <h1 className="text-3xl font-bold mt-6 gradient-text">Entrar na NEXORA</h1>
                         <p className="text-gray-500 mt-2 text-sm tracking-wide">
-                            Selecione seu perfil para criar sua conta
+                            Selecione seu perfil institucional para criar sua conta
                         </p>
                     </motion.div>
 

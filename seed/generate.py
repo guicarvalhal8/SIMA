@@ -52,10 +52,15 @@ COURSES_DATA = [
 ]
 
 
-def seed_database(db: Session):
+def seed_database(
+    db: Session,
+    student_count: int = 260,
+    semester_values: tuple[str, ...] = ("2024.2", "2025.1", "2025.2"),
+    seed_value: int = 42,
+):
     """Popula o banco com dados sintéticos para demonstração."""
 
-    random.seed(42)  # Reprodutibilidade
+    random.seed(seed_value)  # Reprodutibilidade
 
     # ── 1. Criar usuário admin ──
     admin = User(
@@ -84,31 +89,42 @@ def seed_database(db: Session):
 
     # ── 2. Criar disciplinas ──
     courses = []
-    for name, code, credits, dept in COURSES_DATA:
-        course = Course(
-            name=name,
-            code=code,
-            credits=credits,
-            semester="2025.1",
-            department=dept,
-        )
-        courses.append(course)
+    extra_suffixes = ["A", "B", "C"]
+    for semester in semester_values:
+        for name, code, credits, dept in COURSES_DATA:
+            base_course = Course(
+                name=name,
+                code=f"{code}-{semester}",
+                credits=credits,
+                semester=semester,
+                department=dept,
+            )
+            courses.append(base_course)
+
+            for suffix in extra_suffixes:
+                extra_course = Course(
+                    name=f"{name} ({suffix})",
+                    code=f"{code}{suffix}-{semester}",
+                    credits=credits,
+                    semester=semester,
+                    department=dept,
+                )
+                courses.append(extra_course)
     db.add_all(courses)
     db.flush()
 
     # ── 3. Criar alunos (~80) ──
     students = []
     used_names = set()
-    for i in range(80):
-        while True:
-            first = random.choice(FIRST_NAMES)
-            last = random.choice(LAST_NAMES)
-            full_name = f"{first} {last}"
-            if full_name not in used_names:
-                used_names.add(full_name)
-                break
+    for i in range(student_count):
+        first = random.choice(FIRST_NAMES)
+        last = random.choice(LAST_NAMES)
+        full_name = f"{first} {last}"
+        if full_name in used_names:
+            full_name = f"{first} {last} {random.randint(1, 999)}"
+        used_names.add(full_name)
 
-        reg_num = f"2024{i + 1:04d}"
+        reg_num = f"2024{i + 1:05d}"
         email = f"{first.lower()}.{last.lower()}{i}@aluno.edu.br"
         enroll_date = date(2024, 2, 1) + timedelta(days=random.randint(0, 30))
 
@@ -135,15 +151,15 @@ def seed_database(db: Session):
     # ── Perfis de aluno para gerar dados realistas ──
     # Distribui alunos em perfis de desempenho
     profiles = {
-        "excellent": 0.15,   # 15% - GPA 8-10, frequência > 90%
-        "good": 0.35,        # 35% - GPA 6-8, frequência 75-90%
-        "average": 0.25,     # 25% - GPA 5-6.5, frequência 65-80%
-        "struggling": 0.15,  # 15% - GPA 3-5, frequência 50-70%
-        "at_risk": 0.10,     # 10% - GPA < 3, frequência < 50%
+        "excellent": 0.10,
+        "good": 0.25,
+        "average": 0.30,
+        "struggling": 0.20,
+        "at_risk": 0.15,
     }
 
-    def get_profile(idx: int) -> str:
-        r = idx / len(students)
+    def get_profile() -> str:
+        r = random.random()
         cumulative = 0
         for profile, pct in profiles.items():
             cumulative += pct
@@ -185,10 +201,11 @@ def seed_database(db: Session):
         if student.status != StudentStatus.ACTIVE:
             continue
 
-        profile = get_profile(idx)
-        # Cada aluno se matricula em 4-6 disciplinas
-        n_courses = random.randint(4, 6)
-        enrolled_courses = random.sample(courses, min(n_courses, len(courses)))
+        profile = get_profile()
+        semester = random.choice(semester_values)
+        available_courses = [course for course in courses if course.semester == semester]
+        n_courses = random.randint(5, 7)
+        enrolled_courses = random.sample(available_courses, min(n_courses, len(available_courses)))
 
         for course in enrolled_courses:
             # Enrollment
@@ -196,7 +213,7 @@ def seed_database(db: Session):
             enrollment = Enrollment(
                 student_id=student.id,
                 course_id=course.id,
-                semester="2025.1",
+                semester=semester,
                 status=enroll_status,
             )
             db.add(enrollment)

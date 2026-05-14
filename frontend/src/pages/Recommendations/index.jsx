@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { HeartPulse, AlertTriangle, Zap, Shield, BookOpen, ChevronRight, Users, TrendingUp, Target } from 'lucide-react';
 import api from '@/services/api';
 import clsx from 'clsx';
+import { StudentDetailModal } from '@/components/StudentDetailModal';
 
 /* ─── Priority Config ─── */
 const priorityConfig = {
@@ -72,6 +73,7 @@ export function Recommendations() {
     const [stats, setStats] = useState({ total: 0, by_priority: {} });
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -234,7 +236,13 @@ export function Recommendations() {
                                     <div className="flex items-center gap-3 min-w-[160px]">
                                         <div className="text-right">
                                             <p className="text-[10px] text-gray-600 uppercase tracking-wider font-semibold">Aluno Alvo</p>
-                                            <p className="text-sm font-medium text-gray-300">{rec.target_name}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedStudentId(rec.target_id)}
+                                                className="text-sm font-medium text-gray-300 transition-colors hover:text-accent-blue-light"
+                                            >
+                                                {rec.target_name}
+                                            </button>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
@@ -263,6 +271,12 @@ export function Recommendations() {
                     </span>
                 </motion.div>
             )}
+
+            <StudentDetailModal
+                studentId={selectedStudentId}
+                isOpen={selectedStudentId !== null}
+                onClose={() => setSelectedStudentId(null)}
+            />
         </div>
     );
 }

@@ -1,980 +1,775 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { PageHeader } from '@/components/ui/PageHeader';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-    Database, Upload, Search, Filter, Calendar,
-    BookOpen, User, Hash, AlertCircle, CheckCircle2, Loader2,
-    FileSpreadsheet, MessageSquare, Send, Bot, Sparkles, X, FileCheck,
-    Lightbulb, TrendingUp, BarChart3
+    AlertCircle,
+    BarChart3,
+    BookOpen,
+    CheckCircle2,
+    ChevronRight,
+    FileSpreadsheet,
+    Filter,
+    GraduationCap,
+    Lightbulb,
+    Loader2,
+    Search,
+    Send,
+    Upload,
+    Users,
 } from 'lucide-react';
+
 import api from '@/services/api';
-import clsx from 'clsx';
+import { StudentDetailModal } from '@/components/StudentDetailModal';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { PageHeader } from '@/components/ui/PageHeader';
+
+function buildAnalysisLink(analysis, params = {}) {
+    const query = new URLSearchParams({ analysis });
+    Object.entries(params).forEach(([key, value]) => {
+        if (value) query.set(key, String(value));
+    });
+    return `/professor/analysis-center?${query.toString()}`;
+}
 
 export function HistoricalData() {
     const [records, setRecords] = useState([]);
     const [filters, setFilters] = useState({ semesters: [], courses: [], subjects: [] });
+    const [workspace, setWorkspace] = useState(null);
     const [selectedSemester, setSelectedSemester] = useState('');
     const [selectedCourse, setSelectedCourse] = useState('');
     const [selectedSubject, setSelectedSubject] = useState('');
     const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
-    const pageSize = 50;
     const [uploading, setUploading] = useState(false);
-    const [uploadStatus, setUploadStatus] = useState(null);
-
-    // ── Upload Chat state (opens when file is selected, before upload) ──
-    const [showUploadChat, setShowUploadChat] = useState(false);
     const [pendingFile, setPendingFile] = useState(null);
-    const [pendingFileContent, setPendingFileContent] = useState('');
-    const [uploadChatMessages, setUploadChatMessages] = useState([]);
-    const [uploadChatInput, setUploadChatInput] = useState('');
-    const [uploadChatLoading, setUploadChatLoading] = useState(false);
-    const uploadChatEndRef = useRef(null);
-    const uploadChatInputRef = useRef(null);
-
-    // ── General Chat IA state (for already uploaded data) ──
-    const [showChat, setShowChat] = useState(false);
-    const [chatMessages, setChatMessages] = useState([]);
-    const [chatInput, setChatInput] = useState('');
-    const [chatLoading, setChatLoading] = useState(false);
-    const chatEndRef = useRef(null);
-    const chatInputRef = useRef(null);
-
-    // ── Insights state ──
-    const [showInsights, setShowInsights] = useState(false);
-    const [insightsMessages, setInsightsMessages] = useState([]);
-    const [insightsInput, setInsightsInput] = useState('');
+    const [uploadStatus, setUploadStatus] = useState(null);
+    const [insightsPrompt, setInsightsPrompt] = useState('');
     const [insightsLoading, setInsightsLoading] = useState(false);
-    const insightsEndRef = useRef(null);
-    const insightsInputRef = useRef(null);
+    const [insightsResponse, setInsightsResponse] = useState('');
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showAttentionOnly, setShowAttentionOnly] = useState(false);
 
     useEffect(() => {
-        fetchFilters();
-        setCurrentPage(1);
+        fetchData();
     }, [selectedSemester, selectedCourse, selectedSubject]);
 
-    useEffect(() => {
-        fetchRecords();
-    }, [selectedSemester, selectedCourse, selectedSubject, currentPage]);
-
-    useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
-    useEffect(() => { insightsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [insightsMessages]);
-    useEffect(() => { uploadChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [uploadChatMessages]);
-
-    const fetchFilters = async () => {
-        try {
-            const response = await api.get('/historical-data/filters');
-            setFilters(response.data);
-        } catch (error) {
-            console.error("Erro ao buscar filtros", error);
-        }
-    };
-
-    const fetchRecords = async () => {
+    async function fetchData() {
         setLoading(true);
         try {
-            let url = '/historical-data';
-            const params = new URLSearchParams();
-            params.append('page', currentPage.toString());
-            params.append('page_size', pageSize.toString());
-            if (selectedSemester) params.append('semester', selectedSemester);
-            if (selectedCourse) params.append('course_name', selectedCourse);
-            if (selectedSubject) params.append('subject', selectedSubject);
-            url += `?${params.toString()}`;
-            const response = await api.get(url);
-            setRecords(response.data?.records || []);
-            setTotalCount(response.data?.total_count || 0);
+            const params = {
+                semester: selectedSemester || undefined,
+                course_name: selectedCourse || undefined,
+                subject: selectedSubject || undefined,
+            };
+            const [filtersRes, recordsRes, workspaceRes] = await Promise.all([
+                api.get('/historical-data/filters'),
+                api.get('/historical-data', { params: { ...params, page: 1, page_size: 100 } }),
+                api.get('/historical-data/analysis-workspace', { params }),
+            ]);
+
+            setFilters(filtersRes.data);
+            setRecords(recordsRes.data?.records || []);
+            setWorkspace(workspaceRes.data);
         } catch (error) {
-            console.error("Erro ao buscar registros históricos", error);
+            console.error('Erro ao carregar dados historicos', error);
         } finally {
             setLoading(false);
         }
-    };
+    }
 
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    // ═══ FILE SELECTION (does NOT upload — opens chat first) ═══
-    const handleFileSelect = (event) => {
-        const file = event.target.files[0];
+    function handleFileSelect(event) {
+        const file = event.target.files?.[0];
         if (!file) return;
-
         setPendingFile(file);
-
-        // Read file content for chat context (only for text-based files)
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (['csv', 'txt'].includes(ext)) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setPendingFileContent(e.target.result?.substring(0, 10000) || '');
-            };
-            reader.readAsText(file);
-        } else {
-            setPendingFileContent(`[Arquivo binário: ${file.name}]`);
-        }
-
-        // Open upload chat automatically
-        setShowUploadChat(true);
-        setShowChat(false);
-        setShowInsights(false);
-        setUploadChatMessages([{
-            role: 'assistant',
-            content: `📎 Arquivo "${file.name}" selecionado!\n\nAntes de carregar, você pode me dar recomendações específicas sobre como processar esta planilha. Por exemplo:\n\n• "Organize apenas por semestre 2024-1"\n• "Ignore as colunas de observação"\n• "Considere apenas alunos do curso de IA"\n• "Separe por disciplina"\n\nOu clique diretamente em **"Carregar Planilha"** para processar sem instruções específicas.`
-        }]);
-
-        // Reset input
+        setUploadStatus(null);
         event.target.value = '';
-    };
+    }
 
-    // ═══ ACTUAL UPLOAD (triggered by green button) ═══
-    const handleUpload = async () => {
+    async function handleUpload() {
         if (!pendingFile || uploading) return;
 
         setUploading(true);
-        setUploadStatus({ type: 'info', message: 'IA analisando e organizando sua planilha...' });
-
-        const formData = new FormData();
-        formData.append('file', pendingFile);
+        setUploadStatus({ type: 'info', message: 'Normalizando colunas, organizando turmas e preparando a leitura dos alunos...' });
 
         try {
+            const formData = new FormData();
+            formData.append('file', pendingFile);
+
             const response = await api.post('/historical-data/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             setUploadStatus({
                 type: 'success',
-                message: `${response.data.records_count} registros de ${response.data.semester} processados com sucesso!`
+                message: `${response.data.records_count} registros processados com sucesso.`,
+                payload: response.data,
             });
-
-            // Add success message to upload chat
-            setUploadChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `✅ Planilha carregada com sucesso! ${response.data.records_count} registros foram processados do semestre ${response.data.semester}.\n\nOs dados já estão disponíveis na tabela. Você pode fechar este chat ou continuar fazendo perguntas sobre a planilha.`
-            }]);
-
-            fetchFilters();
-            fetchRecords();
             setPendingFile(null);
-
-            setTimeout(() => setUploadStatus(null), 5000);
+            await fetchData();
         } catch (error) {
-            console.error("Erro no upload", error);
             setUploadStatus({
                 type: 'error',
-                message: error.response?.data?.detail || 'Erro ao processar planilha. Verifique o formato.'
+                message: error.response?.data?.detail || 'Nao foi possivel processar o arquivo selecionado.',
             });
         } finally {
             setUploading(false);
         }
-    };
+    }
 
-    // ═══ UPLOAD CHAT (pre-upload recommendations about selected file) ═══
-    const sendUploadChatMessage = async () => {
-        if (!uploadChatInput.trim() || uploadChatLoading) return;
-
-        const userMessage = uploadChatInput.trim();
-        setUploadChatInput('');
-        setUploadChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-        setUploadChatLoading(true);
-
-        try {
-            const response = await api.post('/historical-data/chat', {
-                message: userMessage,
-                file_content: pendingFileContent,
-                history: uploadChatMessages.map(m => ({ role: m.role, content: m.content })),
-            });
-            setUploadChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: response.data.response
-            }]);
-        } catch (error) {
-            setUploadChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '❌ Erro ao processar. Tente novamente.'
-            }]);
-        } finally {
-            setUploadChatLoading(false);
-            uploadChatInputRef.current?.focus();
-        }
-    };
-
-    const handleUploadChatKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendUploadChatMessage();
-        }
-    };
-
-    // ═══ GENERAL CHAT IA (for data already in the system) ═══
-    const sendChatMessage = async () => {
-        if (!chatInput.trim() || chatLoading) return;
-
-        const userMessage = chatInput.trim();
-        setChatInput('');
-        setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-        setChatLoading(true);
-
-        try {
-            const response = await api.post('/historical-data/insights', {
-                message: userMessage,
-            });
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: response.data.response
-            }]);
-        } catch (error) {
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '❌ Erro ao processar. Verifique se há dados históricos carregados.'
-            }]);
-        } finally {
-            setChatLoading(false);
-            chatInputRef.current?.focus();
-        }
-    };
-
-    const handleChatKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendChatMessage();
-        }
-    };
-
-    const openChat = () => {
-        setShowChat(true);
-        setShowInsights(false);
-        setShowUploadChat(false);
-        if (chatMessages.length === 0) {
-            setChatMessages([{
-                role: 'assistant',
-                content: '👋 Olá! Sou seu assistente para gerenciar os dados históricos.\n\nPosso ajudar você a:\n• Alterar ou corrigir dados de planilhas já carregadas\n• Consultar informações específicas dos registros\n• Analisar padrões nos dados existentes\n• Sugerir organização e tratamento de dados\n\nComo posso ajudar?'
-            }]);
-        }
-    };
-
-    // ═══ INSIGHTS FUNCTIONS ═══
-    const sendInsightsMessage = async (customMessage) => {
-        const userMessage = customMessage || insightsInput.trim();
-        if (!userMessage || insightsLoading) return;
-
-        setInsightsInput('');
-        if (!customMessage) {
-            setInsightsMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-        }
+    async function handleGenerateInsights() {
         setInsightsLoading(true);
-
         try {
             const response = await api.post('/historical-data/insights', {
-                message: userMessage,
+                message: insightsPrompt.trim() || 'Gere uma analise geral completa dos dados historicos enviados pelo professor.',
             });
-            setInsightsMessages(prev => [...prev, {
-                role: 'assistant',
-                content: response.data.response
-            }]);
+            setInsightsResponse(response.data?.response || '');
         } catch (error) {
-            setInsightsMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '❌ Erro ao gerar insights. Verifique se há dados históricos carregados.'
-            }]);
+            setInsightsResponse(error.response?.data?.detail || 'Nao foi possivel gerar os insights agora.');
         } finally {
             setInsightsLoading(false);
-            insightsInputRef.current?.focus();
         }
-    };
+    }
 
-    const handleInsightsKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendInsightsMessage();
-        }
-    };
+    const highlightedTopics = workspace?.analysis_data?.risk_topics?.slice(0, 4) || [];
+    const highRiskClasses = workspace?.analysis_data?.high_risk_classes?.slice(0, 4) || [];
+    const uploadSummary = uploadStatus?.payload?.summary;
+    const totalRecords = workspace?.overview?.total_records || 0;
+    const groupedRecords = useMemo(
+        () => buildGroupedRecords(records, { searchTerm, showAttentionOnly }),
+        [records, searchTerm, showAttentionOnly],
+    );
 
-    const startInsights = () => {
-        setShowInsights(true);
-        setShowChat(false);
-        setShowUploadChat(false);
-        if (insightsMessages.length === 0) {
-            setInsightsMessages([{
-                role: 'assistant',
-                content: '🔍 Analisando todos os dados históricos...'
-            }]);
-            setTimeout(() => sendInsightsMessage('Gere uma análise geral completa dos dados históricos.'), 100);
-        }
-    };
+    const normalizationSteps = useMemo(() => ([
+        'Reconhece colunas fora de ordem e nomes diferentes para semestre, aluno, nota e frequencia.',
+        'Converte CSV, XLSX, TXT e PDF para uma estrutura unica antes da leitura analitica.',
+        'Agrupa os registros por turma, curso e semestre para facilitar a leitura docente.',
+    ]), []);
 
-    // ═══ RENDER ═══
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <PageHeader
-                    title="Dados Históricos"
-                    subtitle="Análise inteligente de dados de semestres passados"
-                    icon={Database}
-                />
-
-                <div className="flex items-center gap-3">
-                    {/* Chat IA — General assistant for existing data */}
-                    <Button
-                        icon={MessageSquare}
-                        variant={showChat ? "primary" : "secondary"}
-                        onClick={openChat}
-                        className={clsx(
-                            "relative",
-                            showChat && "ring-2 ring-accent-blue/30"
-                        )}
-                    >
-                        Chat IA
-                    </Button>
-
-                    {/* Insights Button */}
-                    <Button
-                        icon={Lightbulb}
-                        variant={showInsights ? "primary" : "secondary"}
-                        onClick={startInsights}
-                        className={clsx(
-                            "relative",
-                            showInsights && "ring-2 ring-amber-400/30"
-                        )}
-                    >
-                        Gerar Insights
-                    </Button>
-
-                    {/* Upload Button */}
-                    <div className="relative">
-                        <input
-                            type="file"
-                            id="historical-upload"
-                            className="hidden"
-                            accept=".csv,.xlsx,.xls,.txt,.pdf"
-                            onChange={handleFileSelect}
-                            disabled={uploading}
-                        />
-                        {pendingFile ? (
-                            <Button
-                                icon={uploading ? Loader2 : FileCheck}
-                                variant="primary"
-                                onClick={handleUpload}
-                                disabled={uploading}
-                                className={clsx(
-                                    uploading && "animate-pulse",
-                                    "!bg-emerald-600 hover:!bg-emerald-500 !border-emerald-500/30"
-                                )}
-                            >
-                                {uploading ? 'Processando...' : 'Carregar Planilha'}
-                            </Button>
-                        ) : (
-                            <Button
-                                icon={Upload}
-                                variant="primary"
-                                onClick={() => document.getElementById('historical-upload').click()}
-                            >
-                                Subir Planilha
+            <PageHeader
+                title="Subir planilhas e PDFs"
+                subtitle="Envie bases de turmas anteriores. O sistema organiza o arquivo, corrige estrutura e devolve as principais analises."
+                icon={Upload}
+                actions={(
+                    <div className="flex flex-wrap gap-3">
+                        <label className="inline-flex cursor-pointer">
+                            <input type="file" className="hidden" accept=".csv,.xlsx,.xls,.txt,.pdf" onChange={handleFileSelect} />
+                            <Button icon={FileSpreadsheet}>Selecionar arquivo</Button>
+                        </label>
+                        {pendingFile && (
+                            <Button onClick={handleUpload} loading={uploading} icon={Upload}>
+                                Subir e organizar arquivo
                             </Button>
                         )}
                     </div>
-                </div>
+                )}
+            />
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                    title="Registros na base"
+                    value={loading ? '...' : totalRecords}
+                    helper="Historico consolidado disponivel para analise"
+                    icon={BarChart3}
+                    tone="blue"
+                />
+                <MetricCard
+                    title="Semestres"
+                    value={loading ? '...' : workspace?.overview?.total_semesters || 0}
+                    helper="Periodos historicos mapeados"
+                    icon={BookOpen}
+                    tone="indigo"
+                />
+                <MetricCard
+                    title="Turmas criticas"
+                    value={loading ? '...' : workspace?.overview?.critical_classes || 0}
+                    helper="Recortes com risco alto ou critico"
+                    icon={AlertCircle}
+                    tone="amber"
+                />
+                <MetricCard
+                    title="Alunos mapeados"
+                    value={loading ? '...' : workspace?.overview?.total_students || 0}
+                    helper="Base pronta para comparacoes docentes"
+                    icon={CheckCircle2}
+                    tone="emerald"
+                />
             </div>
 
-            {uploadStatus && (
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className={clsx(
-                        "p-4 rounded-2xl border-2 flex items-center justify-between gap-4 backdrop-blur-md",
-                        uploadStatus.type === 'success' ? "bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald" :
-                            uploadStatus.type === 'error' ? "bg-accent-rose/10 border-accent-rose/20 text-accent-rose" :
-                                "bg-accent-blue/10 border-accent-blue/30 text-accent-blue"
-                    )}
-                >
-                    <div className="flex items-center gap-3">
-                        {uploadStatus.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> :
-                            uploadStatus.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
-                                <Loader2 className="w-5 h-5 animate-spin" />}
-                        <span className="text-sm font-semibold tracking-wide">{uploadStatus.message}</span>
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                <Card variant="hero">
+                    <CardHeader
+                        title="Como a NEXORA trata o arquivo"
+                        subtitle="A area de upload organiza a base antes de calcular risco e comparativos."
+                        icon={Upload}
+                    />
+                    <div className="space-y-3">
+                        {normalizationSteps.map((step) => (
+                            <div key={step} className="rounded-[22px] border border-border-subtle bg-white/75 px-4 py-4 text-sm leading-6 text-text-secondary">
+                                {step}
+                            </div>
+                        ))}
                     </div>
-                    {uploadStatus.type !== 'info' && (
-                        <button onClick={() => setUploadStatus(null)} className="hover:opacity-70 transition-opacity">
-                            <Hash className="w-4 h-4 rotate-45" />
-                        </button>
-                    )}
-                </motion.div>
-            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="md:col-span-1 p-6 space-y-8 bg-bg-secondary/40 border-border-subtle/30 backdrop-blur-sm">
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-gray-300">
-                                <Filter className="w-4 h-4 text-accent-blue" />
-                                <span className="text-xs font-bold uppercase tracking-[0.2em]">Filtros Avançados</span>
+                    {pendingFile && (
+                        <div className="mt-5 rounded-[24px] border border-accent-blue/20 bg-white/80 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-semibold text-text-primary">{pendingFile.name}</p>
+                                    <p className="mt-1 text-sm text-text-secondary">
+                                        Arquivo pronto para tratamento, padronizacao e leitura historica.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="info">{(pendingFile.size / 1024).toFixed(1)} KB</Badge>
+                                    <Badge variant="neutral">{pendingFile.name.split('.').pop()?.toUpperCase() || 'ARQ'}</Badge>
+                                </div>
                             </div>
-                            {(selectedSemester || selectedCourse || selectedSubject) && (
-                                <button
-                                    onClick={() => { setSelectedSemester(''); setSelectedCourse(''); setSelectedSubject(''); }}
-                                    className="text-[10px] text-accent-blue hover:text-accent-blue-light font-bold transition-colors uppercase tracking-widest"
-                                >
-                                    Limpar
-                                </button>
-                            )}
-                        </div>
-                        <div className="space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider ml-1">Semestre Letivo</label>
-                                <select value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)}
-                                    className="w-full bg-bg-primary/50 border border-border-subtle/50 rounded-xl px-4 py-3 text-sm text-gray-100 font-semibold focus:outline-none focus:border-accent-blue/50 focus:ring-1 focus:ring-accent-blue/20 transition-all cursor-pointer hover:bg-bg-primary/80">
-                                    <option value="" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>Todos os Semestres</option>
-                                    {filters.semesters.map(s => (<option key={s} value={s} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>{s}</option>))}
-                                </select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider ml-1">Curso de Graduação</label>
-                                <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}
-                                    className="w-full bg-bg-primary/50 border border-border-subtle/50 rounded-xl px-4 py-3 text-sm text-gray-100 font-semibold focus:outline-none focus:border-accent-blue/50 focus:ring-1 focus:ring-accent-blue/20 transition-all cursor-pointer hover:bg-bg-primary/80">
-                                    <option value="" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>Todos os Cursos</option>
-                                    {filters.courses.map(c => (<option key={c} value={c} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>{c}</option>))}
-                                </select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider ml-1">Matéria / Disciplina</label>
-                                <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)}
-                                    className="w-full bg-bg-primary/50 border border-border-subtle/50 rounded-xl px-4 py-3 text-sm text-gray-100 font-semibold focus:outline-none focus:border-accent-blue/50 focus:ring-1 focus:ring-accent-blue/20 transition-all cursor-pointer hover:bg-bg-primary/80">
-                                    <option value="" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>Todas as Matérias</option>
-                                    {filters.subjects?.map(s => (<option key={s} value={s} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>{s}</option>))}
-                                </select>
+                            <div className="mt-4 flex flex-wrap gap-3">
+                                <Button onClick={handleUpload} loading={uploading} icon={Upload}>
+                                    Processar arquivo
+                                </Button>
+                                <Button variant="secondary" onClick={() => setPendingFile(null)}>
+                                    Cancelar
+                                </Button>
                             </div>
                         </div>
-                    </div>
-                    <div className="pt-6 border-t border-border-subtle/20">
-                        <div className="flex items-center gap-2 text-accent-blue/70 mb-3">
-                            <AlertCircle className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Insights IA</span>
-                        </div>
-                        <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
-                            Nossa IA analisa automaticamente dados históricos para gerar padrões e predições mais assertivas.
-                        </p>
-                    </div>
+                    )}
                 </Card>
 
-                <Card className="md:col-span-3 p-0 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead>
-                                <tr className="bg-white/[0.02] border-b border-border-subtle">
-                                    <th className="px-6 py-4 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Aluno</th>
-                                    <th className="px-6 py-4 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Curso / Semestre</th>
-                                    <th className="px-6 py-4 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Notas</th>
-                                    <th className="px-6 py-4 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Frequência</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    Array.from({ length: 5 }).map((_, i) => (
-                                        <tr key={i} className="border-b border-border-subtle/50">
-                                            <td className="px-6 py-4"><div className="h-4 bg-white/5 rounded w-40 animate-pulse" /></td>
-                                            <td className="px-6 py-4"><div className="h-4 bg-white/5 rounded w-32 animate-pulse" /></td>
-                                            <td className="px-6 py-4"><div className="h-4 bg-white/5 rounded w-24 animate-pulse" /></td>
-                                            <td className="px-6 py-4"><div className="h-4 bg-white/5 rounded w-16 animate-pulse" /></td>
-                                        </tr>
-                                    ))
-                                ) : records.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="4" className="px-6 py-20 text-center">
-                                            <div className="flex flex-col items-center gap-4">
-                                                <div className="p-4 rounded-2xl bg-white/[0.03] text-gray-600">
-                                                    <FileSpreadsheet className="w-10 h-10" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-gray-400 font-medium">Nenhum dado histórico encontrado</p>
-                                                    <p className="text-xs text-gray-600 mt-1">Suba uma planilha para começar a análise de dados antigos</p>
-                                                </div>
+                <Card>
+                    <CardHeader
+                        title="Resposta imediata do upload"
+                        subtitle="Assim que a base entra, a pagina destaca os primeiros sinais da analise."
+                        icon={CheckCircle2}
+                    />
+
+                    {uploadStatus ? (
+                        <div className={[
+                            'rounded-[24px] border px-4 py-4 text-sm',
+                            uploadStatus.type === 'success'
+                                ? 'border-success/20 bg-success/5 text-success'
+                                : uploadStatus.type === 'error'
+                                    ? 'border-danger/20 bg-danger/5 text-danger'
+                                    : 'border-accent-blue/20 bg-accent-blue/5 text-accent-blue',
+                        ].join(' ')}>
+                            {uploadStatus.message}
+                        </div>
+                    ) : (
+                        <div className="rounded-[24px] border border-dashed border-border-subtle px-4 py-5 text-sm text-text-secondary">
+                            Selecione um arquivo para ver o resumo de processamento e as primeiras leituras.
+                        </div>
+                    )}
+
+                    {uploadSummary && (
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <div className="rounded-2xl bg-bg-secondary/50 p-4">
+                                <p className="text-xs uppercase tracking-[0.14em] text-text-tertiary">Alunos</p>
+                                <p className="mt-1 text-lg font-semibold text-text-primary">{uploadSummary.students || 0}</p>
+                            </div>
+                            <div className="rounded-2xl bg-bg-secondary/50 p-4">
+                                <p className="text-xs uppercase tracking-[0.14em] text-text-tertiary">Nota media</p>
+                                <p className="mt-1 text-lg font-semibold text-text-primary">
+                                    {uploadSummary.avg_grade?.toFixed?.(2) || uploadSummary.avg_grade || '--'}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl bg-bg-secondary/50 p-4">
+                                <p className="text-xs uppercase tracking-[0.14em] text-text-tertiary">Presenca media</p>
+                                <p className="mt-1 text-lg font-semibold text-text-primary">
+                                    {uploadSummary.avg_attendance?.toFixed?.(1) || uploadSummary.avg_attendance || '--'}%
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {uploadStatus?.payload?.subjects?.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            {uploadStatus.payload.subjects.map((subject) => (
+                                <Badge key={subject} variant="neutral">{subject}</Badge>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+            </div>
+
+            <Card>
+                <CardHeader
+                    title="Filtros da base historica"
+                    subtitle="Refine a leitura antes de abrir comparativos ou exportar analises."
+                    icon={Filter}
+                />
+                <div className="grid gap-4 md:grid-cols-3">
+                    <FilterSelect label="Semestre" value={selectedSemester} onChange={setSelectedSemester} options={filters.semesters} />
+                    <FilterSelect label="Curso" value={selectedCourse} onChange={setSelectedCourse} options={filters.courses} />
+                    <FilterSelect label="Disciplina" value={selectedSubject} onChange={setSelectedSubject} options={filters.subjects} />
+                </div>
+            </Card>
+
+            {loading ? (
+                <Card>
+                    <div className="flex min-h-[220px] items-center justify-center gap-3 text-text-secondary">
+                        <Loader2 className="h-5 w-5 animate-spin text-accent-blue" />
+                        Carregando base historica...
+                    </div>
+                </Card>
+            ) : totalRecords === 0 ? (
+                <EmptyState
+                    icon={Upload}
+                    title="Nenhuma base historica carregada"
+                    description="Envie uma planilha ou PDF de turmas anteriores para liberar analise por turma, comparacao entre turmas, leitura por semestre e assuntos em risco."
+                />
+            ) : (
+                <>
+                    <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                        <Card>
+                            <CardHeader
+                                title="Primeiros assuntos em risco"
+                                subtitle="Leituras automaticas logo apos a organizacao da base."
+                                icon={Lightbulb}
+                            />
+                            <div className="space-y-3">
+                                {highlightedTopics.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        to={buildAnalysisLink('risk_topics', item.type === 'Disciplina' ? { subject: item.label } : { semester: item.semester })}
+                                        className="block rounded-[22px] border border-border-subtle bg-bg-secondary/45 px-4 py-4 transition hover:border-border-hover hover:bg-white"
+                                    >
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-sm font-semibold text-text-primary">{item.label}</p>
+                                            <Badge variant="info">{item.type}</Badge>
+                                        </div>
+                                        <p className="mt-2 text-sm leading-6 text-text-secondary">{item.signal}</p>
+                                    </Link>
+                                ))}
+                            </div>
+                        </Card>
+
+                        <Card>
+                            <CardHeader
+                                title="Turmas com maior risco"
+                                subtitle="Atalho rapido para abrir a leitura profunda por turma."
+                                icon={BarChart3}
+                            />
+                            <div className="space-y-3">
+                                {highRiskClasses.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        to={buildAnalysisLink('by_class', { subject: item.subject, semester: item.semester })}
+                                        className="block rounded-[22px] border border-border-subtle bg-bg-secondary/45 px-4 py-4 transition hover:border-border-hover hover:bg-white"
+                                    >
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-sm font-semibold text-text-primary">{item.label}</p>
+                                            <Badge variant="warning">{Math.round(item.risk_score * 100)}%</Badge>
+                                        </div>
+                                        <p className="mt-2 text-sm text-text-secondary">{item.recommended_focus}</p>
+                                    </Link>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+
+                    <Card>
+                        <CardHeader
+                            title="Gerar comentario academico"
+                            subtitle="Peca uma leitura automatica sobre a base atual, incluindo riscos recorrentes e oportunidades de melhoria."
+                            icon={Lightbulb}
+                        />
+                        <div className="flex flex-col gap-3 lg:flex-row">
+                            <input
+                                value={insightsPrompt}
+                                onChange={(event) => setInsightsPrompt(event.target.value)}
+                                placeholder="Ex.: Quais disciplinas merecem reforco imediato?"
+                                className="h-11 flex-1 rounded-2xl border border-border-subtle bg-white px-4 text-sm text-text-primary outline-none transition focus:border-accent-blue/40"
+                            />
+                            <Button onClick={handleGenerateInsights} loading={insightsLoading} icon={Send}>
+                                Gerar comentario
+                            </Button>
+                        </div>
+                        {insightsResponse && (
+                            <div className="mt-4 rounded-[24px] border border-border-subtle bg-bg-secondary/45 p-5 text-sm leading-7 text-text-secondary whitespace-pre-wrap">
+                                {insightsResponse}
+                            </div>
+                        )}
+                    </Card>
+
+                    <Card>
+                        <CardHeader
+                            title="Registros organizados"
+                            subtitle="Base organizada por turma, com dados do aluno, situacao academica e atalhos para abrir o perfil."
+                            icon={FileSpreadsheet}
+                        />
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="neutral">{groupedRecords.length} turmas organizadas</Badge>
+                                <Badge variant="info">{sumStudents(groupedRecords)} alunos no recorte visivel</Badge>
+                                <Badge variant={showAttentionOnly ? 'warning' : 'neutral'}>
+                                    {showAttentionOnly ? 'Somente em atencao' : 'Todos os alunos'}
+                                </Badge>
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <label className="relative">
+                                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                                    <input
+                                        value={searchTerm}
+                                        onChange={(event) => setSearchTerm(event.target.value)}
+                                        placeholder="Buscar aluno, turma ou disciplina..."
+                                        className="h-11 w-full rounded-2xl border border-border-subtle bg-white pl-11 pr-4 text-sm text-text-primary outline-none transition focus:border-accent-blue/40 sm:w-[320px]"
+                                    />
+                                </label>
+                                <Button
+                                    variant={showAttentionOnly ? 'primary' : 'secondary'}
+                                    onClick={() => setShowAttentionOnly((current) => !current)}
+                                >
+                                    {showAttentionOnly ? 'Mostrar todos' : 'Filtrar atencao'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {groupedRecords.length ? (
+                            <div className="mt-5 space-y-4">
+                                {groupedRecords.map((group) => (
+                                <div key={group.key} className="rounded-[26px] border border-border-subtle bg-bg-secondary/35 p-5">
+                                    <div className="flex flex-col gap-4 border-b border-border-subtle/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="neutral">{group.semester}</Badge>
+                                                <Badge variant="info">{group.courseName}</Badge>
+                                                <Badge variant="neutral">{group.periodLabel}</Badge>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    records.map((record, index) => (
-                                        <motion.tr
-                                            key={record.id}
-                                            className="border-b border-border-subtle/30 hover:bg-white/[0.02] transition-all group cursor-default"
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.015 }}
-                                        >
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent-blue/10 to-transparent border border-white/5 flex items-center justify-center text-accent-blue shadow-lg group-hover:scale-110 transition-transform">
-                                                        <User className="w-4 h-4" />
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-gray-100 text-[13px] tracking-wide group-hover:text-accent-blue transition-colors">
-                                                            {record.student_name}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
-                                                            ID: {record.id.toString().padStart(6, '0')}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="text-[9px] py-0 px-2 border-accent-blue/30 text-accent-blue-light font-black uppercase tracking-tighter">
-                                                            {record.course_name}
-                                                        </Badge>
-                                                        <span className="text-[10px] text-gray-600 font-bold">P{record.period}</span>
-                                                    </div>
-                                                    <span className="text-white text-xs font-black uppercase tracking-tight leading-none group-hover:text-accent-blue-light transition-colors">
-                                                        {record.subject || 'Carga Básica'}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-500 font-bold flex items-center gap-1 opacity-70">
-                                                        <Calendar className="w-2.5 h-2.5" />
-                                                        Semestre {record.semester}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-2">
-                                                    {Object.entries(record.grades || {}).map(([key, val]) => {
-                                                        const isSituation = key.toUpperCase() === 'SITUACAO_HIST';
-                                                        const label = isSituation ? 'SITUAÇÃO' : key;
-                                                        const isApproved = val >= 6 || (isSituation && val?.toString().toLowerCase().includes('aprovado'));
-                                                        const isDispensed = isSituation && val?.toString().toLowerCase().includes('dispensado');
-                                                        return (
-                                                            <div key={key} className="relative group/grade">
-                                                                <div className={clsx(
-                                                                    "flex flex-col items-center justify-center min-w-[3.5rem] h-11 px-2 rounded-xl border-2 transition-all",
-                                                                    isDispensed ? "bg-bg-primary/40 border-border-subtle/50 text-gray-400" :
-                                                                        isApproved ? "bg-accent-emerald/5 border-accent-emerald/10 text-accent-emerald" :
-                                                                            "bg-accent-rose/5 border-accent-rose/10 text-accent-rose"
-                                                                )}>
-                                                                    <span className="text-[8px] font-black uppercase opacity-60 mb-0.5">{label}</span>
-                                                                    <span className={clsx("font-black tracking-tight", isSituation ? "text-[10px] leading-tight text-center" : "text-xs")}>{val}</span>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                {record.attendance !== null ? (
-                                                    <div className="flex flex-col gap-2 w-24">
-                                                        <span className={clsx("text-[10px] font-black tracking-wide", record.attendance >= 75 ? "text-accent-emerald" : "text-accent-rose")}>
-                                                            {record.attendance}%
-                                                        </span>
-                                                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden p-[1px]">
-                                                            <motion.div
-                                                                initial={{ width: 0 }}
-                                                                animate={{ width: `${record.attendance}%` }}
-                                                                className={clsx("h-full rounded-full", record.attendance >= 75 ? "bg-accent-emerald/60 shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "bg-accent-rose/60 shadow-[0_0_8px_rgba(244,63,94,0.3)]")}
-                                                            />
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-text-primary">{group.subject}</h3>
+                                                <p className="mt-1 text-sm text-text-secondary">
+                                                    Turma organizada com alunos, notas, frequencia e situacao academica.
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Link to={buildAnalysisLink('by_class', { subject: group.subject, semester: group.semester })}>
+                                                    <Button size="sm" variant="secondary">
+                                                        Abrir analise da turma
+                                                    </Button>
+                                                </Link>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                            <GroupMetric label="Alunos" value={group.studentCount} icon={Users} />
+                                            <GroupMetric label="Presenca media" value={formatAttendance(group.avgAttendance)} icon={CheckCircle2} />
+                                            <GroupMetric label="Nota media" value={formatGrade(group.avgGrade)} icon={GraduationCap} />
+                                            <GroupMetric label="Em alerta" value={group.attentionCount} icon={AlertCircle} />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 space-y-3">
+                                        {group.students.map((record) => (
+                                            <div
+                                                key={record.id}
+                                                className="rounded-[22px] border border-border-subtle bg-white/90 px-4 py-4 shadow-soft"
+                                            >
+                                                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                                    <div className="space-y-3">
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            {record.student_id ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedStudentId(record.student_id)}
+                                                                    className="inline-flex items-center gap-2 text-left text-sm font-semibold text-text-primary transition hover:text-accent-blue"
+                                                                >
+                                                                    <span>{record.student_name}</span>
+                                                                    <ChevronRight className="h-4 w-4" />
+                                                                </button>
+                                                            ) : (
+                                                                <p className="text-sm font-semibold text-text-primary">{record.student_name}</p>
+                                                            )}
+                                                            <Badge variant={getStudentStatusVariant(record.status_label, record.attendance, record.grade_average)}>
+                                                                {record.status_label || getAttendanceSignal(record.attendance, record.grade_average)}
+                                                            </Badge>
+                                                            {record.is_working && <Badge variant="warning">Trabalha</Badge>}
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-text-secondary">
+                                                            <span>Matricula: {record.registration_number || '--'}</span>
+                                                            <span>Periodo: {record.current_period ? `${record.current_period}o` : '--'}</span>
+                                                            <span>Turno: {record.class_schedule || '--'}</span>
+                                                            <span>Status: {record.student_status || '--'}</span>
                                                         </div>
                                                     </div>
-                                                ) : (
-                                                    <Badge variant="secondary" className="bg-white/5 text-gray-500 border-none text-[9px]">S/ Dados</Badge>
-                                                )}
-                                            </td>
-                                        </motion.tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
 
-                {/* ═══ PAGINATION CONTROLS ═══ */}
-                {totalCount > 0 && (
-                    <div className="flex items-center justify-between mt-4 px-2">
-                        <span className="text-xs text-gray-500">
-                            {totalCount.toLocaleString()} registros • Página {currentPage} de {totalPages}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage <= 1}
-                                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 text-gray-300 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            >
-                                ← Anterior
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage >= totalPages}
-                                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 text-gray-300 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Próxima →
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>            {/* ═══ UPLOAD CHAT PANEL (opens automatically when file is selected) ═══ */}
-            <AnimatePresence>
-                {showUploadChat && (
-                    <>
-                        <motion.div
-                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90]"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => { setShowUploadChat(false); setPendingFile(null); }}
-                        />
-                        <motion.div
-                            className="fixed right-0 top-0 bottom-4 w-full max-w-lg z-[91] flex flex-col"
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        >
-                            <div className="h-full flex flex-col bg-[#0f1117] border-l border-white/10 shadow-2xl">
-                                {/* Header */}
-                                <div className="p-5 border-b border-white/10 bg-gradient-to-r from-emerald-500/5 to-teal-500/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/30 flex items-center justify-center">
-                                                <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-white">Nova Planilha</h3>
-                                                <p className="text-[10px] text-gray-400 mt-0.5 truncate max-w-[240px]">
-                                                    📎 {pendingFile?.name || 'Arquivo selecionado'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => { setShowUploadChat(false); setPendingFile(null); }}
-                                            className="p-2 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
-                                        >
-                                            <X className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Messages */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-                                    {uploadChatMessages.map((msg, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className={clsx("flex gap-3", msg.role === 'user' ? "justify-end" : "justify-start")}
-                                        >
-                                            {msg.role === 'assistant' && (
-                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                                                    <Bot className="w-4 h-4 text-emerald-400" />
+                                                    <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[360px]">
+                                                        <StudentMetric label="Presenca" value={formatAttendance(record.attendance)} />
+                                                        <StudentMetric label="Media" value={formatGrade(record.grade_average)} />
+                                                        <StudentMetric label="Avaliacoes" value={record.grade_items?.length || 0} />
+                                                    </div>
                                                 </div>
-                                            )}
-                                            <div className={clsx(
-                                                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                                                msg.role === 'user'
-                                                    ? "bg-emerald-500/20 text-gray-100 rounded-tr-sm"
-                                                    : "bg-white/[0.04] text-gray-300 rounded-tl-sm border border-white/5"
-                                            )}>
-                                                <div className="whitespace-pre-wrap">{msg.content}</div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
 
-                                    {uploadChatLoading && (
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center flex-shrink-0">
-                                                <Bot className="w-4 h-4 text-emerald-400" />
-                                            </div>
-                                            <div className="bg-white/[0.04] rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
-                                                <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Analisando...
+                                                <div className="mt-4 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                                                    <div className="rounded-[20px] bg-bg-secondary/55 p-4">
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-tertiary">Resumo das notas</p>
+                                                        {record.grade_items?.length ? (
+                                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                                {record.grade_items.map((item) => (
+                                                                    <Badge key={`${record.id}-${item.label}`} variant="neutral">
+                                                                        {item.label}: {Number(item.value).toFixed(1)}
+                                                                    </Badge>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="mt-3 text-sm text-text-secondary">Nenhuma nota numerica identificada nesse registro.</p>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="rounded-[20px] bg-bg-secondary/55 p-4">
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-tertiary">Leitura rapida</p>
+                                                        <p className="mt-3 text-sm leading-6 text-text-secondary">
+                                                            {buildStudentSnapshot(record)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                    <div ref={uploadChatEndRef} />
-                                </div>
-
-                                {/* Upload action bar */}
-                                {pendingFile && !uploading && (
-                                    <div className="px-4 pb-2">
-                                        <button
-                                            onClick={handleUpload}
-                                            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/20"
-                                        >
-                                            <FileCheck className="w-4 h-4" />
-                                            Carregar Planilha
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Input */}
-                                <div className="px-4 pb-6 pt-4 border-t border-white/10 bg-white/[0.01]">
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            ref={uploadChatInputRef}
-                                            type="text"
-                                            value={uploadChatInput}
-                                            onChange={(e) => setUploadChatInput(e.target.value)}
-                                            onKeyDown={handleUploadChatKeyDown}
-                                            placeholder="Dê recomendações sobre a planilha..."
-                                            disabled={uploadChatLoading}
-                                            className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 transition-all disabled:opacity-40"
-                                        />
-                                        <button
-                                            onClick={sendUploadChatMessage}
-                                            disabled={!uploadChatInput.trim() || uploadChatLoading}
-                                            className={clsx(
-                                                "p-3 rounded-xl transition-all",
-                                                uploadChatInput.trim() && !uploadChatLoading
-                                                    ? "bg-emerald-500 text-white hover:bg-emerald-500/80 shadow-lg shadow-emerald-500/20"
-                                                    : "bg-white/5 text-gray-600 cursor-not-allowed"
-                                            )}
-                                        >
-                                            <Send className="w-4 h-4" />
-                                        </button>
+                                        ))}
                                     </div>
                                 </div>
+                                ))}
                             </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-
-            {/* ═══ GENERAL CHAT IA PANEL (for existing data) ═══ */}
-            <AnimatePresence>
-                {showChat && (
-                    <>
-                        <motion.div
-                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90]"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowChat(false)}
-                        />
-                        <motion.div
-                            className="fixed right-0 top-0 bottom-4 w-full max-w-lg z-[91] flex flex-col"
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        >
-                            <div className="h-full flex flex-col bg-[#0f1117] border-l border-white/10 shadow-2xl">
-                                {/* Header */}
-                                <div className="p-5 border-b border-white/10 bg-gradient-to-r from-accent-blue/5 to-accent-purple/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-blue/30 to-accent-purple/30 flex items-center justify-center">
-                                                <Sparkles className="w-5 h-5 text-white" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-white">Chat IA — Dados Históricos</h3>
-                                                <p className="text-[10px] text-gray-400 mt-0.5">
-                                                    🔧 Assistente para gerenciar planilhas já carregadas
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => setShowChat(false)}
-                                            className="p-2 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
-                                        >
-                                            <X className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Messages */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-                                    {chatMessages.map((msg, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className={clsx("flex gap-3", msg.role === 'user' ? "justify-end" : "justify-start")}
-                                        >
-                                            {msg.role === 'assistant' && (
-                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 flex items-center justify-center flex-shrink-0 mt-1">
-                                                    <Bot className="w-4 h-4 text-accent-blue" />
-                                                </div>
-                                            )}
-                                            <div className={clsx(
-                                                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                                                msg.role === 'user'
-                                                    ? "bg-accent-blue/20 text-gray-100 rounded-tr-sm"
-                                                    : "bg-white/[0.04] text-gray-300 rounded-tl-sm border border-white/5"
-                                            )}>
-                                                <div className="whitespace-pre-wrap">{msg.content}</div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-
-                                    {chatLoading && (
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 flex items-center justify-center flex-shrink-0">
-                                                <Bot className="w-4 h-4 text-accent-blue" />
-                                            </div>
-                                            <div className="bg-white/[0.04] rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
-                                                <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Processando...
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                    <div ref={chatEndRef} />
-                                </div>
-
-                                {/* Input */}
-                                <div className="px-4 pb-6 pt-4 border-t border-white/10 bg-white/[0.01]">
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            ref={chatInputRef}
-                                            type="text"
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            onKeyDown={handleChatKeyDown}
-                                            placeholder="Pergunte ou peça alterações nos dados..."
-                                            disabled={chatLoading}
-                                            className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-accent-blue/40 focus:ring-1 focus:ring-accent-blue/20 transition-all disabled:opacity-40"
-                                        />
-                                        <button
-                                            onClick={sendChatMessage}
-                                            disabled={!chatInput.trim() || chatLoading}
-                                            className={clsx(
-                                                "p-3 rounded-xl transition-all",
-                                                chatInput.trim() && !chatLoading
-                                                    ? "bg-accent-blue text-white hover:bg-accent-blue/80 shadow-lg shadow-accent-blue/20"
-                                                    : "bg-white/5 text-gray-600 cursor-not-allowed"
-                                            )}
-                                        >
-                                            <Send className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
+                        ) : (
+                            <div className="mt-5">
+                                <EmptyState
+                                    icon={Search}
+                                    title="Nenhum registro encontrado"
+                                    description="Ajuste a busca ou remova o filtro de atencao para voltar a visualizar as turmas organizadas."
+                                />
                             </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+                        )}
+                    </Card>
+                </>
+            )}
 
-            {/* ═══ INSIGHTS PANEL ═══ */}
-            <AnimatePresence>
-                {showInsights && (
-                    <>
-                        <motion.div
-                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90]"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowInsights(false)}
-                        />
-                        <motion.div
-                            className="fixed right-0 top-0 bottom-4 w-full max-w-lg z-[91] flex flex-col"
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        >
-                            <div className="h-full flex flex-col bg-[#0f1117] border-l border-white/10 shadow-2xl">
-                                <div className="p-5 border-b border-white/10 bg-gradient-to-r from-amber-500/5 to-orange-500/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center">
-                                                <Lightbulb className="w-5 h-5 text-amber-400" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-white">Insights Históricos</h3>
-                                                <p className="text-[10px] text-gray-400 mt-0.5">🔍 Análise de padrões em dados de semestres passados</p>
-                                            </div>
-                                        </div>
-                                        <button onClick={() => setShowInsights(false)} className="p-2 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors">
-                                            <X className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-                                    {insightsMessages.map((msg, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className={clsx("flex gap-3", msg.role === 'user' ? "justify-end" : "justify-start")}
-                                        >
-                                            {msg.role === 'assistant' && (
-                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                                                    <Lightbulb className="w-4 h-4 text-amber-400" />
-                                                </div>
-                                            )}
-                                            <div className={clsx(
-                                                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                                                msg.role === 'user' ? "bg-amber-500/20 text-gray-100 rounded-tr-sm" : "bg-white/[0.04] text-gray-300 rounded-tl-sm border border-white/5"
-                                            )}>
-                                                <div className="whitespace-pre-wrap">{msg.content}</div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-
-                                    {insightsLoading && (
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
-                                                <Lightbulb className="w-4 h-4 text-amber-400" />
-                                            </div>
-                                            <div className="bg-white/[0.04] rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
-                                                <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Gerando insights...
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                    <div ref={insightsEndRef} />
-                                </div>
-
-                                {insightsMessages.length <= 2 && !insightsLoading && (
-                                    <div className="px-4 pb-2">
-                                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold">Sugestões</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {['Quais disciplinas têm mais reprovação?', 'Analise tendências por semestre', 'Sugira tratamento dos dados'].map((s, i) => (
-                                                <button key={i} onClick={() => {
-                                                    setInsightsMessages(prev => [...prev, { role: 'user', content: s }]);
-                                                    sendInsightsMessage(s);
-                                                }} className="px-3 py-1.5 text-xs bg-amber-500/10 text-amber-300 rounded-lg hover:bg-amber-500/20 border border-amber-500/20 transition-all">
-                                                    {s}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="px-4 pb-6 pt-4 border-t border-white/10 bg-white/[0.01]">
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            ref={insightsInputRef}
-                                            type="text"
-                                            value={insightsInput}
-                                            onChange={(e) => setInsightsInput(e.target.value)}
-                                            onKeyDown={handleInsightsKeyDown}
-                                            placeholder="Pergunte sobre padrões, tendências..."
-                                            disabled={insightsLoading}
-                                            className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 transition-all disabled:opacity-40"
-                                        />
-                                        <button
-                                            onClick={() => sendInsightsMessage()}
-                                            disabled={!insightsInput.trim() || insightsLoading}
-                                            className={clsx(
-                                                "p-3 rounded-xl transition-all",
-                                                insightsInput.trim() && !insightsLoading
-                                                    ? "bg-amber-500 text-white hover:bg-amber-500/80 shadow-lg shadow-amber-500/20"
-                                                    : "bg-white/5 text-gray-600 cursor-not-allowed"
-                                            )}
-                                        >
-                                            <Send className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+            <StudentDetailModal
+                studentId={selectedStudentId}
+                isOpen={Boolean(selectedStudentId)}
+                onClose={() => setSelectedStudentId(null)}
+            />
         </div>
     );
+}
+
+function FilterSelect({ label, value, onChange, options = [] }) {
+    return (
+        <label className="space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-text-tertiary">{label}</span>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-11 w-full rounded-2xl border border-border-subtle bg-white px-4 text-sm text-text-primary outline-none transition focus:border-accent-blue/40"
+            >
+                <option value="">Todos</option>
+                {options.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+function buildGroupedRecords(records = [], filters = {}) {
+    const normalizedSearch = normalizeText(filters.searchTerm || '');
+    const groups = new Map();
+
+    records.forEach((record) => {
+        const matchesSearch = !normalizedSearch || [
+            record.student_name,
+            record.subject,
+            record.course_name,
+            record.registration_number,
+            record.class_schedule,
+        ].some((value) => normalizeText(value).includes(normalizedSearch));
+
+        if (!matchesSearch) {
+            return;
+        }
+
+        if (filters.showAttentionOnly && !isAttentionStudent(record)) {
+            return;
+        }
+
+        const semester = record.semester || 'Sem semestre';
+        const subject = record.subject || 'Turma sem disciplina';
+        const courseName = record.course_name || 'Curso nao informado';
+        const periodLabel = record.period ? `${record.period}o periodo` : 'Periodo nao informado';
+        const key = record.class_key || `${semester}::${courseName}::${subject}::${periodLabel}`;
+
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                semester,
+                subject,
+                courseName,
+                periodLabel,
+                students: [],
+            });
+        }
+
+        groups.get(key).students.push(record);
+    });
+
+    return Array.from(groups.values())
+        .map((group) => {
+            const uniqueStudents = new Set(group.students.map((item) => item.student_name).filter(Boolean));
+            const attendanceValues = group.students.map((item) => toNumber(item.attendance)).filter((value) => value != null);
+            const gradeValues = group.students.map((item) => toNumber(item.grade_average)).filter((value) => value != null);
+            const attentionCount = group.students.filter((item) => isAttentionStudent(item)).length;
+
+            return {
+                ...group,
+                studentCount: uniqueStudents.size,
+                avgAttendance: average(attendanceValues),
+                avgGrade: average(gradeValues),
+                attentionCount,
+                students: [...group.students].sort((left, right) => {
+                    const leftScore = scoreStudentAttention(left);
+                    const rightScore = scoreStudentAttention(right);
+                    return rightScore - leftScore || String(left.student_name || '').localeCompare(String(right.student_name || ''));
+                }),
+            };
+        })
+        .sort((left, right) => right.attentionCount - left.attentionCount || String(left.subject).localeCompare(String(right.subject)));
+}
+
+function GroupMetric({ label, value, icon: Icon }) {
+    return (
+        <div className="rounded-[20px] border border-border-subtle bg-white/80 px-4 py-3">
+            <div className="flex items-center gap-2 text-text-secondary">
+                <Icon className="h-4 w-4 text-accent-blue" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">{label}</span>
+            </div>
+            <p className="mt-2 text-lg font-semibold text-text-primary">{value}</p>
+        </div>
+    );
+}
+
+function StudentMetric({ label, value }) {
+    return (
+        <div className="rounded-[18px] border border-border-subtle bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">{label}</p>
+            <p className="mt-2 text-sm font-semibold text-text-primary">{value}</p>
+        </div>
+    );
+}
+
+function buildStudentSnapshot(record) {
+    const notes = [];
+
+    if (record.current_period) {
+        notes.push(`Aluno do ${record.current_period}o periodo`);
+    }
+    if (record.class_schedule) {
+        notes.push(`turno ${String(record.class_schedule).toLowerCase()}`);
+    }
+    if (record.attendance != null) {
+        notes.push(`presenca em ${formatAttendance(record.attendance)}`);
+    }
+    if (record.grade_average != null) {
+        notes.push(`media ${formatGrade(record.grade_average)}`);
+    }
+    if (record.is_working) {
+        notes.push(record.work_schedule ? `trabalha em ${record.work_schedule}` : 'possui rotina de trabalho');
+    }
+
+    if (!notes.length) {
+        return 'Registro organizado sem dados complementares suficientes para montar um resumo automatico.';
+    }
+
+    return `${notes.join(', ')}.`;
+}
+
+function scoreStudentAttention(record) {
+    const attendance = toNumber(record.attendance);
+    const gradeAverage = toNumber(record.grade_average);
+    let score = 0;
+
+    if (attendance != null) {
+        score += Math.max(0, 100 - attendance);
+    }
+    if (gradeAverage != null) {
+        score += Math.max(0, (10 - gradeAverage) * 10);
+    }
+    if (record.status_label && /reprov|risco|alerta/i.test(record.status_label)) {
+        score += 25;
+    }
+
+    return score;
+}
+
+function isAttentionStudent(record) {
+    const attendance = toNumber(record.attendance);
+    const gradeAverage = toNumber(record.grade_average);
+    return (
+        (attendance != null && attendance < 75) ||
+        (gradeAverage != null && gradeAverage < 6) ||
+        Boolean(record.status_label && /reprov|risco|alerta/i.test(record.status_label))
+    );
+}
+
+function getAttendanceSignal(attendance, gradeAverage) {
+    const attendanceValue = toNumber(attendance);
+    const gradeValue = toNumber(gradeAverage);
+
+    if ((attendanceValue != null && attendanceValue < 75) || (gradeValue != null && gradeValue < 6)) {
+        return 'Atenção';
+    }
+    if ((attendanceValue != null && attendanceValue < 85) || (gradeValue != null && gradeValue < 7)) {
+        return 'Monitorar';
+    }
+    return 'Estavel';
+}
+
+function getStudentStatusVariant(statusLabel, attendance, gradeAverage) {
+    if (statusLabel && /reprov/i.test(statusLabel)) {
+        return 'danger';
+    }
+
+    const signal = getAttendanceSignal(attendance, gradeAverage);
+    if (signal === 'Atenção') {
+        return 'warning';
+    }
+    if (signal === 'Monitorar') {
+        return 'info';
+    }
+    return 'success';
+}
+
+function formatAttendance(value) {
+    const numericValue = toNumber(value);
+    return numericValue != null ? `${numericValue.toFixed(1)}%` : '--';
+}
+
+function formatGrade(value) {
+    const numericValue = toNumber(value);
+    return numericValue != null ? numericValue.toFixed(1) : '--';
+}
+
+function toNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function average(values = []) {
+    if (!values.length) return null;
+    return values.reduce((sum, value) => sum + Number(value || 0), 0) / values.length;
+}
+
+function sumStudents(groups = []) {
+    return groups.reduce((sum, group) => sum + Number(group.studentCount || 0), 0);
+}
+
+function normalizeText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .trim();
 }

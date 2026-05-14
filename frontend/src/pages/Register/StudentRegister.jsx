@@ -365,7 +365,7 @@ export function StudentRegister() {
                                                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                                    className="absolute z-50 w-full mt-2 bg-[#1a1a2e]/95 backdrop-blur-xl border border-accent-blue/30 rounded-2xl overflow-hidden shadow-glow-lg max-h-56 overflow-y-auto custom-scrollbar"
+                                                    className="absolute z-50 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-border-subtle bg-white/95 shadow-card-hover backdrop-blur-xl custom-scrollbar"
                                                 >
                                                     {AVAILABLE_COURSES.filter(c =>
                                                         c.toLowerCase().includes(form.course_name.toLowerCase())

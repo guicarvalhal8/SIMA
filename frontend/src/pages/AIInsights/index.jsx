@@ -8,6 +8,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import api from '@/services/api';
+import { StudentDetailModal } from '@/components/StudentDetailModal';
 
 /* ─── Severity / Impact Badges ─── */
 const severityConfig = {
@@ -151,7 +152,7 @@ function PatternCard({ pattern, index }) {
 }
 
 /* ─── Focus Student Card ─── */
-function FocusStudentCard({ student, index }) {
+function FocusStudentCard({ student, index, onOpenStudent }) {
     return (
         <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -166,7 +167,13 @@ function FocusStudentCard({ student, index }) {
                     </div>
                     <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-gray-200 text-sm mb-1">
-                            {student.student_name}
+                            <button
+                                type="button"
+                                onClick={() => onOpenStudent?.(student.student_id)}
+                                className="transition-colors hover:text-accent-blue-light"
+                            >
+                                {student.student_name}
+                            </button>
                             <span className="text-gray-600 font-normal ml-2 text-xs">ID: {student.student_id}</span>
                         </h4>
                         <p className="text-gray-500 text-xs mb-2">{student.reason}</p>
@@ -217,6 +224,7 @@ export function AIInsights() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
 
     async function generateInsights() {
         setLoading(true);
@@ -352,7 +360,7 @@ export function AIInsights() {
                                 </div>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     {data.focus_students.map((s, i) => (
-                                        <FocusStudentCard key={i} student={s} index={i} />
+                                        <FocusStudentCard key={i} student={s} index={i} onOpenStudent={setSelectedStudentId} />
                                     ))}
                                 </div>
                             </div>
@@ -387,6 +395,12 @@ export function AIInsights() {
                 </div>
                 <AIChat />
             </div>
+
+            <StudentDetailModal
+                studentId={selectedStudentId}
+                isOpen={selectedStudentId !== null}
+                onClose={() => setSelectedStudentId(null)}
+            />
         </div>
     );
 }

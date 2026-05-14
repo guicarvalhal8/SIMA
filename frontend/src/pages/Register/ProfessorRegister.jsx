@@ -19,6 +19,8 @@ export function ProfessorRegister() {
     const [showCourseDropdown, setShowCourseDropdown] = useState(false);
     const [subjectSearch, setSubjectSearch] = useState('');
     const [availableSubjects, setAvailableSubjects] = useState([]);
+    const [subjectsLoading, setSubjectsLoading] = useState(false);
+    const [subjectsError, setSubjectsError] = useState('');
 
     // Mesma lista de cursos acadêmicos usada no cadastro de aluno
     const availableAcademicCourses = [
@@ -65,11 +67,22 @@ export function ProfessorRegister() {
     useEffect(() => {
         if (form.academic_courses.length > 0) {
             const names = form.academic_courses.join(',');
+            setSubjectsLoading(true);
+            setSubjectsError('');
             api.get(`/courses/by-academic-courses?names=${names}`)
-                .then(res => setAvailableSubjects(res.data))
-                .catch(() => setAvailableSubjects([]));
+                .then((res) => setAvailableSubjects(res.data))
+                .catch((err) => {
+                    setAvailableSubjects([]);
+                    setSubjectsError(
+                        err.response?.data?.detail ||
+                        'Nao foi possivel carregar as disciplinas agora. Verifique se o backend esta em execucao.'
+                    );
+                })
+                .finally(() => setSubjectsLoading(false));
         } else {
             setAvailableSubjects([]);
+            setSubjectsLoading(false);
+            setSubjectsError('');
             setForm(prev => ({ ...prev, course_ids: [] }));
         }
     }, [form.academic_courses]);
@@ -122,7 +135,16 @@ export function ProfessorRegister() {
             });
             setSuccess(true);
         } catch (err) {
-            setError(err.response?.data?.detail || 'Erro ao cadastrar. Tente novamente.');
+            const detail = err.response?.data?.detail;
+            const message = Array.isArray(detail)
+                ? detail.map((item) => item.msg).join(' | ')
+                : detail;
+            setError(
+                message ||
+                (err.request
+                    ? 'Nao foi possivel conectar ao backend. Verifique se a API esta rodando em http://127.0.0.1:8000.'
+                    : 'Erro ao cadastrar. Tente novamente.')
+            );
         } finally {
             setLoading(false);
         }
@@ -306,7 +328,7 @@ export function ProfessorRegister() {
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    className="absolute z-50 w-full mt-2 bg-[#1a1a2e]/95 backdrop-blur-xl border border-accent-purple/30 rounded-2xl overflow-hidden shadow-glow-lg max-h-56 overflow-y-auto custom-scrollbar"
+                                    className="absolute z-50 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-border-subtle bg-white/95 shadow-card-hover backdrop-blur-xl custom-scrollbar"
                                 >
                                     {availableAcademicCourses
                                         .filter(c => c.toLowerCase().includes(courseSearch.toLowerCase()))
@@ -355,7 +377,7 @@ export function ProfessorRegister() {
                                     Disciplinas específicas
                                 </label>
                                 <p className="text-[10px] text-text-tertiary">
-                                    Mostrando matérias com alunos ativos nos cursos selecionados acima.
+                                    Mostrando disciplinas relacionadas aos cursos selecionados. Se a base ainda estiver incompleta, o sistema usa o catálogo institucional como apoio.
                                 </p>
 
                                 {/* Campo de busca de disciplinas */}
@@ -366,7 +388,18 @@ export function ProfessorRegister() {
                                     onChange={e => setSubjectSearch(e.target.value)}
                                 />
 
+                                {subjectsError && (
+                                    <p className="rounded-xl border border-warning/20 bg-warning/8 px-4 py-3 text-xs text-warning">
+                                        {subjectsError}
+                                    </p>
+                                )}
+
                                 <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                    {subjectsLoading && (
+                                        <p className="text-xs text-text-secondary italic p-4 text-center glass-card">
+                                            Carregando disciplinas...
+                                        </p>
+                                    )}
                                     {availableSubjects
                                         .filter(s => !subjectSearch || s.name.toLowerCase().includes(subjectSearch.toLowerCase()))
                                         .sort((a, b) => {
@@ -398,9 +431,9 @@ export function ProfessorRegister() {
                                                 </div>
                                             </label>
                                         ))}
-                                    {availableSubjects.filter(s => !subjectSearch || s.name.toLowerCase().includes(subjectSearch.toLowerCase())).length === 0 && (
+                                    {!subjectsLoading && availableSubjects.filter(s => !subjectSearch || s.name.toLowerCase().includes(subjectSearch.toLowerCase())).length === 0 && (
                                         <p className="text-xs text-text-secondary italic p-4 text-center glass-card">
-                                            {subjectSearch ? 'Nenhuma disciplina encontrada para a busca.' : 'Nenhuma disciplina com alunos encontrada para estes cursos.'}
+                                            {subjectSearch ? 'Nenhuma disciplina encontrada para a busca.' : 'Nenhuma disciplina relacionada foi encontrada para estes cursos.'}
                                         </p>
                                     )}
                                 </div>

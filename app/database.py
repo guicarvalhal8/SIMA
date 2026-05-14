@@ -4,15 +4,29 @@ Configura o engine SQLAlchemy e a fábrica de sessões.
 """
 
 from typing import Generator
+from pathlib import Path
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.config import settings
 
+
+def _resolve_database_url(database_url: str) -> str:
+    if not database_url.startswith("sqlite:///./"):
+        return database_url
+
+    project_root = Path(__file__).resolve().parent.parent
+    relative_name = database_url.removeprefix("sqlite:///./")
+    absolute_path = project_root / relative_name
+    return f"sqlite:///{absolute_path.as_posix()}"
+
+
+RESOLVED_DATABASE_URL = _resolve_database_url(settings.DATABASE_URL)
+
 # Engine SQLAlchemy — connect_args necessário para SQLite
 engine = create_engine(
-    settings.DATABASE_URL,
+    RESOLVED_DATABASE_URL,
     connect_args={"check_same_thread": False},
     echo=settings.DEBUG,
 )

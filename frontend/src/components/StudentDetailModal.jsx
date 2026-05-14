@@ -1,213 +1,197 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-    X, User, BookOpen, Clock, Award, TrendingUp,
-    CheckCircle, AlertTriangle, XCircle, GraduationCap, Mail, Hash, Calendar
+    Award,
+    BookOpen,
+    CalendarRange,
+    CheckCircle2,
+    Clock,
+    GraduationCap,
+    ShieldAlert,
+    Sparkles,
+    TrendingUp,
+    User,
+    X,
 } from 'lucide-react';
 import api from '@/services/api';
-import clsx from 'clsx';
+import { Badge } from '@/components/ui/Badge';
 
-const situacaoConfig = {
-    'Aprovado': { color: 'text-emerald-400', bg: 'bg-emerald-400/10', icon: CheckCircle },
-    'Reprovado': { color: 'text-red-400', bg: 'bg-red-400/10', icon: XCircle },
-    'Cursando': { color: 'text-blue-400', bg: 'bg-blue-400/10', icon: BookOpen },
-    'default': { color: 'text-amber-400', bg: 'bg-amber-400/10', icon: AlertTriangle },
-};
-
-function getGradeColor(value) {
-    if (value === null || value === undefined || value === 0) return 'text-gray-500';
-    if (value >= 7) return 'text-emerald-400';
-    if (value >= 5) return 'text-amber-400';
-    return 'text-red-400';
-}
-
-function getPresenceColor(pct) {
-    if (pct >= 75) return 'text-emerald-400';
-    if (pct >= 60) return 'text-amber-400';
-    return 'text-red-400';
-}
-
-function getPresenceBg(pct) {
-    if (pct >= 75) return 'bg-emerald-400';
-    if (pct >= 60) return 'bg-amber-400';
-    return 'bg-red-400';
-}
+const TAB_ITEMS = [
+    { id: 'overview', label: 'Visao geral', icon: TrendingUp },
+    { id: 'grades', label: 'Notas', icon: Award },
+    { id: 'attendance', label: 'Frequencia', icon: Clock },
+    { id: 'subjects', label: 'Disciplinas', icon: BookOpen },
+    { id: 'schedule', label: 'Horarios', icon: CalendarRange },
+];
 
 export function StudentDetailModal({ studentId, isOpen, onClose }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('grades');
+    const [error, setError] = useState('');
+    const [activeTab, setActiveTab] = useState('overview');
 
     useEffect(() => {
         if (isOpen && studentId) {
             setLoading(true);
-            setActiveTab('grades');
+            setError('');
+            setActiveTab('overview');
             api.get(`/students/${studentId}/detail`)
-                .then(res => setData(res.data))
-                .catch(err => console.error('Erro ao buscar detalhes do aluno', err))
+                .then((response) => setData(response.data))
+                .catch((requestError) => {
+                    console.error('Erro ao buscar detalhes do aluno', requestError);
+                    setError(requestError.response?.data?.detail || 'Nao foi possivel carregar os dados do aluno.');
+                })
                 .finally(() => setLoading(false));
         }
     }, [isOpen, studentId]);
 
-    // Close on ESC key
     useEffect(() => {
-        const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') onClose();
+        };
+
         if (isOpen) {
             document.addEventListener('keydown', handleEsc);
             document.body.style.overflow = 'hidden';
         }
+
         return () => {
             document.removeEventListener('keydown', handleEsc);
             document.body.style.overflow = '';
         };
     }, [isOpen, onClose]);
 
-    const tabs = [
-        { id: 'grades', label: 'Notas', icon: Award },
-        { id: 'attendance', label: 'Frequência', icon: Clock },
-    ];
+    const analytics = data?.analytics || {};
+    const kpis = analytics?.kpis || {};
+    const grades = data?.grades || [];
+    const attendance = data?.attendance || [];
+    const subjects = data?.subjects || [];
+    const schedule = data?.schedule || [];
+    const recommendations = analytics?.recommendations || [];
+    const history = analytics?.history || [];
+
+    const headerStats = {
+        subjects: grades.length || subjects.length || 0,
+        avgGrade: grades.length
+            ? (grades.reduce((sum, item) => sum + Number(item.media || 0), 0) / grades.length).toFixed(1)
+            : Number(kpis.gpa || 0).toFixed(1),
+        avgAttendance: attendance.length
+            ? `${(attendance.reduce((sum, item) => sum + Number(item.percentual_presenca || 0), 0) / attendance.length).toFixed(0)}%`
+            : `${Number(kpis.attendance_rate || 0).toFixed(0)}%`,
+        riskScore: `${Math.round(Number(kpis.risk_score || 0) * 100)}%`,
+    };
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* Backdrop */}
                     <motion.div
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+                        className="fixed inset-0 z-[100] bg-slate-950/28 backdrop-blur-sm"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
                     />
 
-                    {/* Panel */}
                     <motion.div
-                        className="fixed right-0 top-0 h-full w-full max-w-2xl z-[101] flex flex-col"
+                        className="fixed right-0 top-0 z-[101] flex h-full w-full max-w-[960px] flex-col border-l border-border-subtle bg-white shadow-card-hover"
                         initial={{ x: '100%' }}
                         animate={{ x: 0 }}
                         exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 32 }}
                     >
-                        <div className="h-full flex flex-col bg-[#0f1117] border-l border-white/10 shadow-2xl">
-                            {/* Header */}
+                        <div className="border-b border-border-subtle bg-brand-gradient-soft px-6 py-6">
                             {loading ? (
-                                <div className="p-6 border-b border-white/10">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-2xl bg-white/5 animate-pulse" />
-                                        <div className="flex-1">
-                                            <div className="h-5 w-48 bg-white/5 rounded animate-pulse mb-2" />
-                                            <div className="h-3 w-32 bg-white/5 rounded animate-pulse" />
-                                        </div>
-                                    </div>
+                                <div className="space-y-3">
+                                    <div className="h-5 w-48 animate-pulse rounded-full bg-white/60" />
+                                    <div className="h-4 w-32 animate-pulse rounded-full bg-white/50" />
                                 </div>
                             ) : data && (
-                                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-accent-blue/5 to-accent-purple/5">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-blue/30 to-accent-purple/30 flex items-center justify-center text-lg font-bold text-white shadow-lg shadow-accent-blue/10">
-                                                {data.student.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                <div className="space-y-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-brand-gradient text-lg font-bold text-white">
+                                                {getInitials(data.student.name)}
                                             </div>
                                             <div>
-                                                <h2 className="text-lg font-bold text-white">{data.student.name}</h2>
-                                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                                                    <span className="flex items-center gap-1">
-                                                        <Hash className="w-3 h-3" />
-                                                        {data.student.registration_number}
-                                                    </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <GraduationCap className="w-3 h-3" />
-                                                        {data.student.course_name}
-                                                    </span>
+                                                <h2 className="text-xl font-semibold text-text-primary">{data.student.name}</h2>
+                                                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
+                                                    <span>{data.student.registration_number}</span>
+                                                    <span>{data.student.course_name || '--'}</span>
+                                                    <span>{data.student.current_period ? `${data.student.current_period}o periodo` : 'Periodo nao informado'}</span>
                                                 </div>
-                                                {data.student.email && (
-                                                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                                                        <Mail className="w-3 h-3" />
-                                                        {data.student.email}
-                                                    </div>
-                                                )}
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <Badge variant={getRiskBadgeVariant(kpis.risk_level)} dot>
+                                                        {formatRiskLabel(kpis.risk_level)}
+                                                    </Badge>
+                                                    <Badge variant="info">
+                                                        {data.student.class_schedule || 'Turno nao informado'}
+                                                    </Badge>
+                                                    <Badge variant={data.student.sync_status === 'done' ? 'success' : data.student.sync_status === 'error' ? 'danger' : 'neutral'}>
+                                                        Sync {data.student.sync_status || 'indisponivel'}
+                                                    </Badge>
+                                                </div>
                                             </div>
                                         </div>
+
                                         <button
+                                            type="button"
                                             onClick={onClose}
-                                            className="p-2 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+                                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border-subtle bg-white text-text-secondary transition-colors hover:border-border-hover hover:text-text-primary"
                                         >
-                                            <X className="w-5 h-5" />
+                                            <X className="h-4 w-4" />
                                         </button>
                                     </div>
 
-                                    {/* Quick Stats */}
-                                    <div className="grid grid-cols-3 gap-3 mt-5">
-                                        <QuickStat
-                                            label="Disciplinas"
-                                            value={data.grades?.length || 0}
-                                            icon={BookOpen}
-                                            color="blue"
-                                        />
-                                        <QuickStat
-                                            label="Média Geral"
-                                            value={
-                                                data.grades?.length > 0
-                                                    ? (data.grades.reduce((sum, g) => sum + (g.media || 0), 0) / data.grades.length).toFixed(1)
-                                                    : '—'
-                                            }
-                                            icon={TrendingUp}
-                                            color="emerald"
-                                        />
-                                        <QuickStat
-                                            label="Freq. Média"
-                                            value={
-                                                data.attendance?.length > 0
-                                                    ? (data.attendance.reduce((sum, a) => sum + (a.percentual_presenca || 0), 0) / data.attendance.length).toFixed(0) + '%'
-                                                    : '—'
-                                            }
-                                            icon={Clock}
-                                            color="purple"
-                                        />
+                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                                        <QuickStat label="Disciplinas" value={headerStats.subjects} icon={BookOpen} />
+                                        <QuickStat label="Media geral" value={headerStats.avgGrade} icon={TrendingUp} />
+                                        <QuickStat label="Frequencia" value={headerStats.avgAttendance} icon={Clock} />
+                                        <QuickStat label="Risco" value={headerStats.riskScore} icon={ShieldAlert} />
                                     </div>
                                 </div>
                             )}
+                        </div>
 
-                            {/* Tabs */}
-                            <div className="flex gap-1 px-6 pt-4 pb-0">
-                                {tabs.map(tab => {
-                                    const Icon = tab.icon;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => setActiveTab(tab.id)}
-                                            className={clsx(
-                                                'flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-sm font-medium transition-all',
-                                                activeTab === tab.id
-                                                    ? 'bg-white/[0.06] text-white border-b-2 border-accent-blue'
-                                                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'
-                                            )}
-                                        >
-                                            <Icon className="w-4 h-4" />
-                                            {tab.label}
-                                        </button>
-                                    );
-                                })}
+                        <div className="border-b border-border-subtle px-6 pt-4">
+                            <div className="flex flex-wrap gap-2">
+                                {TAB_ITEMS.map((tab) => (
+                                    <TabButton
+                                        key={tab.id}
+                                        active={activeTab === tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        icon={tab.icon}
+                                        label={tab.label}
+                                    />
+                                ))}
                             </div>
+                        </div>
 
-                            {/* Content */}
-                            <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin">
-                                {loading ? (
-                                    <div className="space-y-3">
-                                        {Array.from({ length: 4 }).map((_, i) => (
-                                            <div key={i} className="h-20 bg-white/[0.03] rounded-xl animate-pulse" />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <AnimatePresence mode="wait">
-                                        {activeTab === 'grades' && (
-                                            <GradesTab key="grades" grades={data?.grades || []} />
-                                        )}
-                                        {activeTab === 'attendance' && (
-                                            <AttendanceTab key="attendance" attendance={data?.attendance || []} />
-                                        )}
-                                    </AnimatePresence>
-                                )}
-                            </div>
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
+                            {loading ? (
+                                <div className="space-y-3">
+                                    {Array.from({ length: 4 }).map((_, index) => (
+                                        <div key={index} className="h-24 animate-pulse rounded-[22px] bg-bg-secondary" />
+                                    ))}
+                                </div>
+                            ) : error ? (
+                                <EmptyPanel icon={ShieldAlert} title="Nao foi possivel abrir o aluno" description={error} />
+                            ) : (
+                                <>
+                                    {activeTab === 'overview' && (
+                                        <OverviewTab
+                                            student={data?.student}
+                                            kpis={kpis}
+                                            history={history}
+                                            recommendations={recommendations}
+                                        />
+                                    )}
+                                    {activeTab === 'grades' && <GradesTab grades={grades} />}
+                                    {activeTab === 'attendance' && <AttendanceTab attendance={attendance} />}
+                                    {activeTab === 'subjects' && <SubjectsTab subjects={subjects} />}
+                                    {activeTab === 'schedule' && <ScheduleTab schedule={schedule} />}
+                                </>
+                            )}
                         </div>
                     </motion.div>
                 </>
@@ -216,161 +200,362 @@ export function StudentDetailModal({ studentId, isOpen, onClose }) {
     );
 }
 
-function QuickStat({ label, value, icon: Icon, color }) {
-    const colorMap = {
-        blue: 'from-accent-blue/20 to-accent-blue/5 text-accent-blue',
-        emerald: 'from-emerald-500/20 to-emerald-500/5 text-emerald-400',
-        purple: 'from-accent-purple/20 to-accent-purple/5 text-accent-purple',
-    };
+function QuickStat({ label, value, icon: Icon }) {
     return (
-        <div className={clsx(
-            'p-3 rounded-xl bg-gradient-to-br border border-white/5',
-            colorMap[color]
-        )}>
-            <div className="flex items-center gap-2 mb-1">
-                <Icon className="w-3.5 h-3.5 opacity-70" />
-                <span className="text-[10px] uppercase tracking-wider opacity-70 font-medium">{label}</span>
+        <div className="rounded-[20px] border border-border-subtle bg-white/78 p-4">
+            <div className="flex items-center gap-2 text-text-secondary">
+                <Icon className="h-4 w-4 text-accent-blue" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">{label}</span>
             </div>
-            <div className="text-xl font-bold text-white ml-0.5">{value}</div>
+            <p className="mt-3 text-2xl font-semibold text-text-primary">{value}</p>
+        </div>
+    );
+}
+
+function TabButton({ active, onClick, icon: Icon, label }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`inline-flex items-center gap-2 rounded-t-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                active ? 'border-b-2 border-accent-blue text-accent-blue' : 'text-text-secondary hover:text-text-primary'
+            }`}
+        >
+            <Icon className="h-4 w-4" />
+            {label}
+        </button>
+    );
+}
+
+function OverviewTab({ student, kpis, history, recommendations }) {
+    return (
+        <div className="space-y-5">
+            <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+                <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
+                    <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-accent-blue" />
+                        <p className="text-sm font-semibold text-text-primary">Dados do aluno</p>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <InfoLine icon={User} label="Matricula" value={student?.registration_number} />
+                        <InfoLine icon={GraduationCap} label="Curso" value={student?.course_name} />
+                        <InfoLine icon={CalendarRange} label="Periodo atual" value={student?.current_period ? `${student.current_period}o periodo` : '--'} />
+                        <InfoLine icon={Clock} label="Turno" value={student?.class_schedule} />
+                        <InfoLine icon={CalendarRange} label="Ingresso" value={formatDate(student?.enrollment_date)} />
+                        <InfoLine icon={CheckCircle2} label="Status" value={student?.status} />
+                        <InfoLine
+                            icon={ShieldAlert}
+                            label="Trabalho"
+                            value={student?.is_working ? (student?.work_schedule ? `Sim • ${student.work_schedule}` : 'Sim') : 'Nao'}
+                        />
+                    </div>
+                </div>
+
+                <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-accent-purple" />
+                        <p className="text-sm font-semibold text-text-primary">Indicadores estatisticos</p>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <MetricMini label="GPA" value={Number(kpis.gpa || 0).toFixed(2)} />
+                        <MetricMini label="Frequencia" value={`${Number(kpis.attendance_rate || 0).toFixed(0)}%`} />
+                        <MetricMini label="Reprovacoes" value={kpis.failures ?? 0} />
+                        <MetricMini label="Tendencia" value={formatTrend(kpis.grade_trend)} />
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+                <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
+                    <div className="flex items-center gap-2">
+                        <Award className="h-4 w-4 text-accent-blue" />
+                        <p className="text-sm font-semibold text-text-primary">Historico sintetico</p>
+                    </div>
+                    {history?.length ? (
+                        <div className="mt-4 space-y-3">
+                            {history.map((item) => (
+                                <div key={`${item.disciplina}-${item.media}`} className="rounded-2xl bg-white px-4 py-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
+                                            <p className="mt-1 text-sm text-text-secondary">{item.situacao || 'Em andamento'}</p>
+                                        </div>
+                                        <span className={getGradeColorClass(item.media)}>
+                                            {Number(item.media || 0).toFixed(1)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <EmptyInline text="Nenhum historico de notas encontrado." />
+                    )}
+                </div>
+
+                <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
+                    <div className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 text-accent-purple" />
+                        <p className="text-sm font-semibold text-text-primary">Recomendacoes academicas</p>
+                    </div>
+                    {recommendations?.length ? (
+                        <div className="mt-4 space-y-3">
+                            {recommendations.map((item, index) => (
+                                <div key={`${item.title}-${index}`} className="rounded-2xl bg-white px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant={mapPriorityToBadge(item.priority)}>{item.priority || 'prioridade'}</Badge>
+                                        <p className="text-sm font-semibold text-text-primary">{item.title}</p>
+                                    </div>
+                                    <p className="mt-2 text-sm leading-6 text-text-secondary">{item.message}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <EmptyInline text="Sem recomendacoes adicionais para este aluno no momento." />
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
 
 function GradesTab({ grades }) {
-    if (grades.length === 0) {
-        return (
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-col items-center justify-center py-16 text-gray-500"
-            >
-                <Award className="w-12 h-12 mb-3 opacity-30" />
-                <p className="font-medium">Nenhuma nota encontrada</p>
-                <p className="text-xs text-gray-600 mt-1">Os dados de notas serão exibidos após a sincronização</p>
-            </motion.div>
-        );
+    if (!grades.length) {
+        return <EmptyPanel icon={Award} title="Nenhuma nota encontrada" description="As notas do aluno serao exibidas aqui apos a sincronizacao." />;
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-3"
-        >
-            {grades.map((grade, index) => {
-                const situacao = situacaoConfig[grade.situacao] || situacaoConfig['default'];
-                const SitIcon = situacao.icon;
-                return (
-                    <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-colors"
-                    >
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <BookOpen className="w-4 h-4 text-accent-blue" />
-                                <span className="text-sm font-semibold text-gray-200 line-clamp-1">
-                                    {grade.disciplina}
-                                </span>
-                            </div>
-                            <div className={clsx('flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium', situacao.bg, situacao.color)}>
-                                <SitIcon className="w-3 h-3" />
-                                {grade.situacao || '—'}
-                            </div>
+        <div className="space-y-3">
+            {grades.map((grade, index) => (
+                <motion.div
+                    key={`${grade.disciplina}-${index}`}
+                    className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-text-primary">{grade.disciplina}</p>
+                            <p className="mt-1 text-sm text-text-secondary">Avaliacao consolidada da disciplina</p>
                         </div>
-                        <div className="grid grid-cols-4 gap-3">
-                            <GradeCell label="VA1" value={grade.va1} />
-                            <GradeCell label="VA2" value={grade.va2} />
-                            <GradeCell label="VA3" value={grade.va3} />
-                            <GradeCell label="Média" value={grade.media} highlight />
-                        </div>
-                    </motion.div>
-                );
-            })}
-        </motion.div>
-    );
-}
+                        <Badge variant={grade.situacao === 'Aprovado' ? 'success' : grade.situacao === 'Reprovado' ? 'danger' : 'warning'}>
+                            {grade.situacao || 'Em andamento'}
+                        </Badge>
+                    </div>
 
-function GradeCell({ label, value, highlight = false }) {
-    const displayValue = value !== null && value !== undefined && value > 0 ? value.toFixed(1) : '—';
-    return (
-        <div className={clsx(
-            'text-center p-2 rounded-lg',
-            highlight ? 'bg-white/[0.05] border border-white/10' : 'bg-white/[0.02]'
-        )}>
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5">{label}</div>
-            <div className={clsx(
-                'text-base font-bold',
-                highlight ? getGradeColor(value) : 'text-gray-300',
-                highlight && 'text-lg'
-            )}>
-                {displayValue}
-            </div>
+                    <div className="mt-4 grid grid-cols-4 gap-3">
+                        <ScoreCell label="VA1" value={grade.va1} />
+                        <ScoreCell label="VA2" value={grade.va2} />
+                        <ScoreCell label="VA3" value={grade.va3} />
+                        <ScoreCell label="Media" value={grade.media} highlight />
+                    </div>
+                </motion.div>
+            ))}
         </div>
     );
 }
 
 function AttendanceTab({ attendance }) {
-    if (attendance.length === 0) {
-        return (
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-col items-center justify-center py-16 text-gray-500"
-            >
-                <Clock className="w-12 h-12 mb-3 opacity-30" />
-                <p className="font-medium">Nenhuma frequência encontrada</p>
-                <p className="text-xs text-gray-600 mt-1">Os dados de frequência serão exibidos após a sincronização</p>
-            </motion.div>
-        );
+    if (!attendance.length) {
+        return <EmptyPanel icon={Clock} title="Nenhuma frequencia encontrada" description="Os dados de frequencia serao exibidos aqui apos a sincronizacao." />;
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-3"
-        >
-            {attendance.map((att, index) => (
+        <div className="space-y-3">
+            {attendance.map((item, index) => (
                 <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-colors"
+                    key={`${item.disciplina}-${index}`}
+                    className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
                 >
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <BookOpen className="w-4 h-4 text-accent-purple" />
-                            <span className="text-sm font-semibold text-gray-200 line-clamp-1">
-                                {att.disciplina}
-                            </span>
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
+                            <p className="mt-1 text-sm text-text-secondary">{item.total_faltas} faltas em {item.total_aulas} aulas</p>
                         </div>
-                        <span className={clsx('text-lg font-bold', getPresenceColor(att.percentual_presenca))}>
-                            {att.percentual_presenca?.toFixed(0)}%
-                        </span>
+                        <Badge variant={item.percentual_presenca >= 75 ? 'success' : item.percentual_presenca >= 60 ? 'warning' : 'danger'}>
+                            {item.percentual_presenca?.toFixed(0)}%
+                        </Badge>
                     </div>
-                    {/* Progress bar */}
-                    <div className="w-full h-2 bg-white/[0.05] rounded-full overflow-hidden mb-2">
-                        <motion.div
-                            className={clsx('h-full rounded-full', getPresenceBg(att.percentual_presenca))}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(att.percentual_presenca, 100)}%` }}
-                            transition={{ delay: index * 0.05 + 0.2, duration: 0.6, ease: 'easeOut' }}
+                    <div className="mt-4 h-2 rounded-full bg-white">
+                        <div
+                            className={`h-2 rounded-full ${item.percentual_presenca >= 75 ? 'bg-success' : item.percentual_presenca >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                            style={{ width: `${Math.min(item.percentual_presenca || 0, 100)}%` }}
                         />
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{att.total_aulas} aulas</span>
-                        <span className="text-red-400/80">{att.total_faltas} faltas</span>
                     </div>
                 </motion.div>
             ))}
-        </motion.div>
+        </div>
     );
+}
+
+function SubjectsTab({ subjects }) {
+    if (!subjects.length) {
+        return <EmptyPanel icon={BookOpen} title="Nenhuma disciplina encontrada" description="As disciplinas do aluno aparecerao aqui quando houver sincronizacao ou vinculo academico." />;
+    }
+
+    return (
+        <div className="space-y-3">
+            {subjects.map((subject, index) => (
+                <motion.div
+                    key={`${subject.disciplina}-${index}`}
+                    className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-text-primary">{subject.disciplina}</p>
+                            <p className="mt-1 text-sm text-text-secondary">{subject.docente || 'Docente nao informado'}</p>
+                        </div>
+                        <Badge variant={subject.situacao === 'Aprovado' || subject.situacao === 'Matriculado' ? 'success' : 'warning'}>
+                            {subject.situacao || 'Em andamento'}
+                        </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <InfoTile label="Periodo" value={subject.periodo} />
+                        <InfoTile label="Inicio" value={subject.data_inicial} />
+                    </div>
+                </motion.div>
+            ))}
+        </div>
+    );
+}
+
+function ScheduleTab({ schedule }) {
+    if (!schedule.length) {
+        return <EmptyPanel icon={CalendarRange} title="Nenhum horario encontrado" description="O quadro de horarios sera exibido aqui quando o aluno tiver dados sincronizados." />;
+    }
+
+    return (
+        <div className="space-y-3">
+            {schedule.map((item, index) => (
+                <motion.div
+                    key={`${item.dia_nome}-${item.disciplina}-${index}`}
+                    className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
+                            <p className="mt-1 text-sm text-text-secondary">{item.dia_nome} • {item.horario_inicio} - {item.horario_fim}</p>
+                        </div>
+                        <Badge variant="info">{item.local || 'Sem sala'}</Badge>
+                    </div>
+                    <p className="mt-3 text-sm text-text-secondary">Professor: {item.professor || 'Nao informado'}</p>
+                </motion.div>
+            ))}
+        </div>
+    );
+}
+
+function MetricMini({ label, value }) {
+    return (
+        <div className="rounded-2xl bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">{label}</p>
+            <p className="mt-2 text-lg font-semibold text-text-primary">{value}</p>
+        </div>
+    );
+}
+
+function InfoLine({ icon: Icon, label, value }) {
+    return (
+        <div className="rounded-2xl bg-white px-4 py-3">
+            <div className="flex items-center gap-2 text-text-secondary">
+                <Icon className="h-4 w-4 text-accent-blue" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">{label}</span>
+            </div>
+            <p className="mt-2 text-sm font-medium text-text-primary">{value || '--'}</p>
+        </div>
+    );
+}
+
+function InfoTile({ label, value }) {
+    return (
+        <div className="rounded-2xl bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">{label}</p>
+            <p className="mt-2 text-sm font-medium text-text-primary">{value || '--'}</p>
+        </div>
+    );
+}
+
+function ScoreCell({ label, value, highlight = false }) {
+    return (
+        <div className={`rounded-2xl p-3 text-center ${highlight ? 'border border-border-subtle bg-white' : 'bg-white/70'}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">{label}</p>
+            <p className={`mt-2 text-lg font-semibold ${highlight ? getGradeColorClass(value) : 'text-text-primary'}`}>
+                {value == null ? '--' : Number(value).toFixed(1)}
+            </p>
+        </div>
+    );
+}
+
+function EmptyPanel({ icon: Icon, title, description }) {
+    return (
+        <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[24px] border border-dashed border-border-subtle bg-bg-secondary/40 px-6 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-gradient-soft text-accent-blue">
+                <Icon className="h-6 w-6" />
+            </div>
+            <p className="mt-5 text-lg font-semibold text-text-primary">{title}</p>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-text-secondary">{description}</p>
+        </div>
+    );
+}
+
+function EmptyInline({ text }) {
+    return (
+        <div className="rounded-[22px] border border-dashed border-border-subtle bg-white/60 px-5 py-10 text-center text-sm text-text-secondary">
+            {text}
+        </div>
+    );
+}
+
+function getInitials(name = '') {
+    return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function getGradeColorClass(value) {
+    const numericValue = Number(value || 0);
+    if (numericValue >= 7) return 'text-success';
+    if (numericValue >= 5) return 'text-warning';
+    return 'text-danger';
+}
+
+function getRiskBadgeVariant(level) {
+    if (level === 'critical') return 'danger';
+    if (level === 'high') return 'danger';
+    if (level === 'medium') return 'attention';
+    return 'success';
+}
+
+function formatRiskLabel(level) {
+    if (level === 'critical') return 'Risco critico';
+    if (level === 'high') return 'Risco alto';
+    if (level === 'medium') return 'Risco moderado';
+    return 'Risco controlado';
+}
+
+function mapPriorityToBadge(priority) {
+    if (priority === 'critical') return 'danger';
+    if (priority === 'high') return 'warning';
+    if (priority === 'medium') return 'info';
+    return 'success';
+}
+
+function formatDate(value) {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('pt-BR');
+}
+
+function formatTrend(value) {
+    const numericValue = Number(value || 0);
+    if (numericValue > 0) return `+${numericValue.toFixed(2)}`;
+    return numericValue.toFixed(2);
 }

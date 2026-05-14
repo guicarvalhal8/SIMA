@@ -197,7 +197,7 @@ export function StudentProfile() {
                                 <select
                                     value={form.class_schedule}
                                     onChange={e => updateField('class_schedule', e.target.value)}
-                                    className="w-full bg-[#1a1a2e] border border-border-subtle rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-accent-blue transition-colors [&>option]:bg-[#1a1a2e] [&>option]:text-text-primary"
+                                    className="w-full rounded-2xl border border-border-subtle bg-white px-4 py-3 text-sm text-text-primary shadow-sm shadow-slate-900/[0.02] transition-colors focus:border-accent-blue/35 focus:outline-none focus:ring-4 focus:ring-accent-blue/10 [&>option]:bg-white [&>option]:text-text-primary"
                                 >
                                     <option value="">Selecione...</option>
                                     <option value="MORNING">Matutino</option>

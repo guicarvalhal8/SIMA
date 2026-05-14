@@ -3,25 +3,23 @@ import { motion } from 'framer-motion';
 
 export function AnimatedBackground({ variant = 'default' }) {
     const orbs = variant === 'login' ? [
-        { size: 500, x: '15%', y: '30%', color: 'rgba(99, 102, 241, 0.08)', duration: 20 },
-        { size: 400, x: '75%', y: '20%', color: 'rgba(168, 85, 247, 0.06)', duration: 25 },
-        { size: 350, x: '60%', y: '75%', color: 'rgba(34, 211, 238, 0.05)', duration: 22 },
-        { size: 250, x: '30%', y: '80%', color: 'rgba(99, 102, 241, 0.04)', duration: 18 },
+        { size: 520, x: '8%', y: '14%', color: 'rgba(11, 87, 208, 0.12)', duration: 22 },
+        { size: 360, x: '72%', y: '12%', color: 'rgba(106, 27, 255, 0.12)', duration: 26 },
+        { size: 420, x: '58%', y: '72%', color: 'rgba(0, 59, 143, 0.1)', duration: 24 },
+        { size: 280, x: '22%', y: '78%', color: 'rgba(124, 58, 237, 0.1)', duration: 20 },
     ] : [
-        { size: 400, x: '10%', y: '20%', color: 'rgba(99, 102, 241, 0.04)', duration: 25 },
-        { size: 300, x: '85%', y: '60%', color: 'rgba(168, 85, 247, 0.03)', duration: 30 },
-        { size: 250, x: '50%', y: '85%', color: 'rgba(34, 211, 238, 0.02)', duration: 28 },
+        { size: 420, x: '4%', y: '10%', color: 'rgba(11, 87, 208, 0.08)', duration: 28 },
+        { size: 320, x: '74%', y: '18%', color: 'rgba(106, 27, 255, 0.08)', duration: 32 },
+        { size: 260, x: '64%', y: '76%', color: 'rgba(0, 59, 143, 0.07)', duration: 30 },
     ];
 
     return (
-        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-            {/* Grid pattern */}
-            <div className="absolute inset-0 grid-pattern opacity-60" />
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+            <div className="absolute inset-0 grid-pattern opacity-70" />
 
-            {/* Floating orbs */}
-            {orbs.map((orb, i) => (
+            {orbs.map((orb, index) => (
                 <motion.div
-                    key={i}
+                    key={index}
                     className="absolute rounded-full"
                     style={{
                         width: orb.size,
@@ -29,12 +27,12 @@ export function AnimatedBackground({ variant = 'default' }) {
                         left: orb.x,
                         top: orb.y,
                         background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
-                        filter: 'blur(40px)',
+                        filter: 'blur(42px)',
                     }}
                     animate={{
-                        x: [0, 30, -20, 0],
-                        y: [0, -25, 15, 0],
-                        scale: [1, 1.1, 0.95, 1],
+                        x: [0, 28, -18, 0],
+                        y: [0, -20, 14, 0],
+                        scale: [1, 1.08, 0.96, 1],
                     }}
                     transition={{
                         duration: orb.duration,
@@ -44,8 +42,8 @@ export function AnimatedBackground({ variant = 'default' }) {
                 />
             ))}
 
-            {/* Subtle vignette */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg-primary/80" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0))]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.8),transparent_54%)]" />
         </div>
     );
 }

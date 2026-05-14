@@ -58,7 +58,13 @@ export const AuthProvider = ({ children }) => {
             return { success: true };
         } catch (error) {
             console.error("Login error:", error);
-            return { success: false, message: error.response?.data?.detail || 'Erro ao realizar login' };
+            const detail = error.response?.data?.detail;
+            return {
+                success: false,
+                message: detail || (error.request
+                    ? 'Nao foi possivel conectar ao backend. Verifique se a API esta rodando em http://127.0.0.1:8000.'
+                    : 'Erro ao realizar login'),
+            };
         }
     };
 

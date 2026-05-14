@@ -2,6 +2,7 @@
 Router CRUD de Disciplinas.
 """
 
+import unicodedata
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -15,6 +16,80 @@ from app.models.student import Student
 from app.models.enrollment import Enrollment
 
 router = APIRouter(prefix="/api/courses", tags=["Disciplinas"])
+
+
+CATALOG_FALLBACK_RULES = [
+    {
+        "matches": {
+            "inteligencia artificial",
+            "analise e desenvolvimento de sistemas",
+            "engenharia de software",
+            "design grafico",
+        },
+        "departments": {"Computação", "Matemática"},
+        "keywords": {"programacao", "banco", "software", "inteligencia", "algorit", "estatistica"},
+    },
+    {
+        "matches": {
+            "engenharia civil",
+            "engenharia eletrica",
+            "engenharia mecanica",
+            "arquitetura e urbanismo",
+        },
+        "departments": {"Física", "Matemática", "Computação"},
+        "keywords": {"calculo", "fisica", "algebra", "estatistica", "redes"},
+    },
+]
+
+
+def normalize_text(value: Optional[str]) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or ""))
+    return "".join(char for char in normalized if not unicodedata.combining(char)).lower().strip()
+
+
+def serialize_course(course: Course) -> dict:
+    return {
+        "id": course.id,
+        "name": course.name,
+        "code": course.code,
+        "department": course.department,
+    }
+
+
+def infer_catalog_courses(db: Session, academic_names: list[str]) -> list[dict]:
+    """Usa o catálogo institucional como fallback quando não há vínculo explícito suficiente."""
+    normalized_names = [normalize_text(name) for name in academic_names]
+    inferred_departments = set()
+    inferred_keywords = set()
+
+    for rule in CATALOG_FALLBACK_RULES:
+        if any(name in rule["matches"] for name in normalized_names):
+            inferred_departments.update(rule["departments"])
+            inferred_keywords.update(rule["keywords"])
+
+    catalog = db.query(Course).all()
+    ranked_courses: list[tuple[int, str, Course]] = []
+
+    for course in catalog:
+        course_name = normalize_text(course.name)
+        course_department = normalize_text(course.department)
+        course_code = normalize_text(course.code)
+        score = 0
+
+        if course.department in inferred_departments:
+            score += 3
+        if any(keyword in course_name or keyword in course_department or keyword in course_code for keyword in inferred_keywords):
+            score += 2
+
+        ranked_courses.append((score, course.name, course))
+
+    ranked_courses.sort(key=lambda item: (-item[0], item[1]))
+
+    prioritized = [serialize_course(course) for score, _, course in ranked_courses if score > 0]
+    if prioritized:
+        return prioritized
+
+    return [serialize_course(course) for _, _, course in ranked_courses]
 
 
 @router.get("/academic-courses")
@@ -48,6 +123,7 @@ def list_subjects_by_academic_courses(
         return []
 
     result = []
+    seen_ids = set()
     seen_names = set()
 
     # Buscar disciplinas a partir dos dados de scraping (fonte principal)
@@ -77,12 +153,8 @@ def list_subjects_by_academic_courses(
             # Tentar encontrar na tabela courses por nome
             existing = db.query(Course).filter(Course.name == disc_name).first()
             if existing:
-                result.append({
-                    "id": existing.id,
-                    "name": existing.name,
-                    "code": existing.code,
-                    "department": existing.department,
-                })
+                seen_ids.add(existing.id)
+                result.append(serialize_course(existing))
             else:
                 result.append({
                     "id": None,
@@ -90,6 +162,22 @@ def list_subjects_by_academic_courses(
                     "code": "",
                     "department": None,
                 })
+
+    enrolled_courses = (
+        db.query(Course)
+        .join(Enrollment, Enrollment.course_id == Course.id)
+        .join(Student, Student.id == Enrollment.student_id)
+        .filter(Student.course_name.in_(academic_names))
+        .distinct()
+        .all()
+    )
+    for course in enrolled_courses:
+        if course.id not in seen_ids:
+            seen_ids.add(course.id)
+            result.append(serialize_course(course))
+
+    if not result:
+        result.extend(infer_catalog_courses(db, academic_names))
 
     # Ordenar por nome
     result.sort(key=lambda x: x["name"])

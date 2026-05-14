@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { AlertTriangle, UserX, HeartPulse, Shield, Zap, BookOpen, ChevronRight, Target } from 'lucide-react';
 import api from '@/services/api';
 import clsx from 'clsx';
+import { StudentDetailModal } from '@/components/StudentDetailModal';
 
 /* ─── Risk Ring (SVG Circular Progress) ─── */
 function RiskRing({ score, size = 56, strokeWidth = 4 }) {
@@ -89,6 +90,7 @@ export function Predictions() {
     const [predictions, setPredictions] = useState([]);
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -135,7 +137,7 @@ export function Predictions() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {predictions.slice(0, 6).map((pred, index) => (
-                            <Card key={pred.student_id} delay={index * 0.08} className="group">
+                            <Card key={pred.student_id} delay={index * 0.08} className="group cursor-pointer" animate>
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2.5 mb-1">
@@ -143,7 +145,13 @@ export function Predictions() {
                                                 {pred.student_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-gray-200 text-sm truncate">{pred.student_name}</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedStudentId(pred.student_id)}
+                                                    className="font-semibold text-gray-200 text-sm truncate transition-colors hover:text-accent-blue-light"
+                                                >
+                                                    {pred.student_name}
+                                                </button>
                                                 <p className="text-[10px] text-gray-600 font-mono">ID: {pred.student_id}</p>
                                             </div>
                                         </div>
@@ -214,7 +222,13 @@ export function Predictions() {
                                 <div className="flex items-center gap-3 min-w-[140px]">
                                     <div className="text-right">
                                         <p className="text-[10px] text-gray-600 uppercase tracking-wider font-semibold">Aluno Alvo</p>
-                                        <p className="text-sm font-medium text-gray-300">{rec.target_name}</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedStudentId(rec.target_id)}
+                                            className="text-sm font-medium text-gray-300 transition-colors hover:text-accent-blue-light"
+                                        >
+                                            {rec.target_name}
+                                        </button>
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
@@ -223,6 +237,12 @@ export function Predictions() {
                     })}
                 </div>
             </div>
+
+            <StudentDetailModal
+                studentId={selectedStudentId}
+                isOpen={selectedStudentId !== null}
+                onClose={() => setSelectedStudentId(null)}
+            />
         </div>
     );
 }

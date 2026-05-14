@@ -172,6 +172,7 @@ def get_my_students(
 
     result = []
     for subj_name in sorted(prof_subject_names):
+        matched_course = db.query(Course).filter(Course.name == subj_name).first()
         students_in_subject = []
         for student in all_students:
             # Checar se o aluno tem notas nessa disciplina (via scraping)
@@ -205,9 +206,9 @@ def get_my_students(
         if students_in_subject:
             students_in_subject.sort(key=lambda s: s.get("current_period") or 0)
             result.append({
-                "course_id": None,
+                "course_id": matched_course.id if matched_course else None,
                 "course_name": subj_name,
-                "course_code": "",
+                "course_code": matched_course.code if matched_course else "",
                 "students": students_in_subject,
             })
 

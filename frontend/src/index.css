@@ -1,18 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    color-scheme: light;
+    --nexora-primary-dark: #003B8F;
+    --nexora-primary: #0B57D0;
+    --nexora-purple: #6A1BFF;
+    --nexora-purple-soft: #7C3AED;
+    --nexora-bg: #F6F8FC;
+    --nexora-card: #FFFFFF;
+    --nexora-text: #0F172A;
+    --nexora-text-secondary: #475569;
+    --nexora-border: #E2E8F0;
+    --nexora-shadow: 0 24px 60px -34px rgba(15, 23, 42, 0.18);
+    --nexora-brand-gradient: linear-gradient(135deg, #003B8F 0%, #6A1BFF 100%);
+}
 
 @layer base {
     *,
     *::before,
     *::after {
         scrollbar-width: thin;
-        scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+        scrollbar-color: rgba(11, 87, 208, 0.24) transparent;
     }
 
     *::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
     }
 
     *::-webkit-scrollbar-track {
@@ -20,17 +37,17 @@
     }
 
     *::-webkit-scrollbar-thumb {
-        background: rgba(99, 102, 241, 0.25);
-        border-radius: 100px;
+        background: rgba(11, 87, 208, 0.2);
+        border-radius: 999px;
     }
 
     *::-webkit-scrollbar-thumb:hover {
-        background: rgba(99, 102, 241, 0.4);
+        background: rgba(11, 87, 208, 0.32);
     }
 
     ::selection {
-        background: rgba(99, 102, 241, 0.3);
-        color: #e2e8f0;
+        background: rgba(106, 27, 255, 0.14);
+        color: #0F172A;
     }
 
     html {
@@ -38,53 +55,63 @@
     }
 
     body {
-        @apply bg-bg-primary text-gray-100 font-sans antialiased;
+        @apply bg-bg-primary text-text-primary font-sans antialiased;
         background-image:
-            radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
-            radial-gradient(ellipse at 50% 80%, rgba(34, 211, 238, 0.02) 0%, transparent 50%);
+            radial-gradient(circle at top left, rgba(11, 87, 208, 0.09), transparent 26%),
+            radial-gradient(circle at top right, rgba(106, 27, 255, 0.08), transparent 24%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0) 32%);
         min-height: 100vh;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        @apply font-display text-text-primary;
     }
 }
 
 @layer components {
     .glass-card {
-        @apply bg-bg-card border border-border-subtle rounded-2xl shadow-card;
-        backdrop-filter: blur(20px) saturate(1.2);
-        transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        @apply border border-border-subtle rounded-[26px] shadow-card text-text-primary;
+        background-color: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(18px) saturate(1.08);
+        transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, background-color 0.28s ease;
     }
 
     .glass-card:hover {
         @apply border-border-hover shadow-card-hover;
-        background: rgba(15, 22, 40, 0.75);
+        background-color: rgba(255, 255, 255, 0.95);
+        transform: translateY(-2px);
     }
 
     .glass-card-static {
-        @apply bg-bg-card border border-border-subtle rounded-2xl shadow-card;
-        backdrop-filter: blur(20px) saturate(1.2);
+        @apply border border-border-subtle rounded-[26px] shadow-card text-text-primary;
+        background-color: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(18px) saturate(1.06);
     }
 
     .btn-primary {
-        @apply bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold py-2.5 px-5 rounded-xl shadow-glow-sm;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        @apply bg-brand-gradient text-white font-semibold rounded-2xl shadow-glow-sm;
+        transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
     }
 
     .btn-primary:hover {
-        @apply shadow-glow scale-[1.02];
-        filter: brightness(1.1);
+        @apply shadow-glow;
+        filter: saturate(1.05) brightness(1.03);
+        transform: translateY(-1px);
     }
 
     .btn-primary:active {
-        @apply scale-[0.98];
+        transform: translateY(0);
     }
 
     .gradient-text {
-        @apply bg-gradient-to-r from-accent-blue via-accent-purple to-accent-cyan bg-clip-text text-transparent;
-        background-size: 200% auto;
+        @apply bg-brand-gradient bg-clip-text text-transparent;
     }
 
     .gradient-text-blue {
-        @apply bg-gradient-to-r from-accent-blue-light to-accent-blue bg-clip-text text-transparent;
+        @apply bg-gradient-to-r from-accent-blue-dark to-accent-blue bg-clip-text text-transparent;
     }
 
     .glow-border {
@@ -96,30 +123,40 @@
         position: absolute;
         inset: -1px;
         border-radius: inherit;
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), transparent 40%, transparent 60%, rgba(168, 85, 247, 0.15));
+        background: linear-gradient(135deg, rgba(11, 87, 208, 0.18), transparent 42%, transparent 58%, rgba(106, 27, 255, 0.18));
         z-index: -1;
         opacity: 0;
-        transition: opacity 0.4s ease;
+        transition: opacity 0.3s ease;
     }
 
     .glow-border:hover::after {
         opacity: 1;
     }
 
-    .animate-count-up {
-        animation: count-up 0.8s ease-out forwards;
-    }
-
-    @keyframes count-up {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Grid pattern overlay for futuristic effect */
     .grid-pattern {
         background-image:
-            linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
-        background-size: 40px 40px;
+            linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+        background-size: 34px 34px;
+    }
+
+    .brand-shell {
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7)),
+            radial-gradient(circle at top right, rgba(11, 87, 208, 0.12), transparent 36%);
+        box-shadow: var(--nexora-shadow);
+    }
+
+    .table-shell {
+        @apply overflow-hidden rounded-[24px] border border-border-subtle bg-white;
+        box-shadow: 0 18px 40px -32px rgba(15, 23, 42, 0.2);
+    }
+
+    .table-row-hover {
+        @apply transition-colors duration-200 hover:bg-bg-secondary;
+    }
+
+    .status-pill {
+        @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide;
     }
 }

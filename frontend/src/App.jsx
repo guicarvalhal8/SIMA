@@ -20,6 +20,7 @@ import { ProfessorProfile } from '@/pages/ProfessorProfile';
 import { StudentProfile } from '@/pages/StudentProfile';
 import { HistoricalData } from '@/pages/HistoricalData';
 import { CoordinatorDashboard } from '@/pages/CoordinatorDashboard';
+import { AnalysisCenter } from '@/pages/AnalysisCenter';
 
 function App() {
     return (
@@ -52,9 +53,11 @@ function App() {
                         <Route path="professor/courses" element={<ProfessorCourses />} />
                         <Route path="professor/profile" element={<ProfessorProfile />} />
                         <Route path="professor/historical-data" element={<HistoricalData />} />
+                        <Route path="professor/analysis-center" element={<AnalysisCenter />} />
 
                         {/* Coordinator routes */}
                         <Route path="coordinator/dashboard" element={<CoordinatorDashboard />} />
+                        <Route path="coordinator/analysis-center" element={<AnalysisCenter />} />
                     </Route>
                 </Routes>
             </AuthProvider>

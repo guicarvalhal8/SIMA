@@ -14,13 +14,68 @@ from app.database import get_db, SessionLocal
 from app.models.student import Student, StudentStatus
 from app.models.user import User, UserRole
 from app.models.scraped_data import ScrapedGrade, ScrapedAttendance, ScrapedSubject, ScrapedSchedule
+from app.models.professor import Professor
+from app.models.coordinator import Coordinator
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse, StudentListResponse
 from app.security.auth import get_current_user
 from app.security.audit import audit_logger
+from app.services.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/students", tags=["Alunos"])
+
+
+def _can_professor_access_student(db: Session, professor_user_id: int, student: Student) -> bool:
+    from app.models.course import Course
+    from app.models.enrollment import Enrollment
+
+    professor = db.query(Professor).filter(Professor.user_id == professor_user_id).first()
+    if not professor:
+        return False
+
+    academic_course_names = {ac.course_name for ac in professor.academic_courses if ac.course_name}
+    if student.course_name in academic_course_names:
+        return True
+
+    selected_course_ids = [pc.course_id for pc in professor.professor_courses]
+    if selected_course_ids:
+        has_enrollment = db.query(Enrollment).filter(
+            Enrollment.student_id == student.id,
+            Enrollment.course_id.in_(selected_course_ids),
+        ).first()
+        if has_enrollment:
+            return True
+
+    selected_course_names = []
+    for course_id in selected_course_ids:
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if course and course.name:
+            selected_course_names.append(course.name)
+
+    if selected_course_names:
+        has_scraped = db.query(ScrapedGrade).filter(
+            ScrapedGrade.student_id == student.id,
+            ScrapedGrade.disciplina.in_(selected_course_names),
+        ).first()
+        if has_scraped:
+            return True
+
+        has_scraped_attendance = db.query(ScrapedAttendance).filter(
+            ScrapedAttendance.student_id == student.id,
+            ScrapedAttendance.disciplina.in_(selected_course_names),
+        ).first()
+        if has_scraped_attendance:
+            return True
+
+    return False
+
+
+def _can_coordinator_access_student(db: Session, coordinator_user_id: int, student: Student) -> bool:
+    coordinator = db.query(Coordinator).filter(Coordinator.user_id == coordinator_user_id).first()
+    if not coordinator:
+        return False
+    return bool(student.course_name and student.course_name == coordinator.academic_course_name)
 
 
 # ═══════════════════════════════════════════════
@@ -469,13 +524,19 @@ def get_student_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna detalhes completos de um aluno: dados pessoais, notas e frequência."""
-    if current_user.role not in (UserRole.PROFESSOR, UserRole.ADMIN):
-        raise HTTPException(status_code=403, detail="Acesso restrito a professores e administradores")
+    """Retorna detalhes completos de um aluno para professor, coordenador ou administrador."""
+    if current_user.role not in (UserRole.PROFESSOR, UserRole.COORDINATOR, UserRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Acesso restrito a professor, coordenacao e administracao")
 
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+    if current_user.role == UserRole.PROFESSOR and not _can_professor_access_student(db, current_user.id, student):
+        raise HTTPException(status_code=403, detail="Voce nao tem acesso a este aluno")
+
+    if current_user.role == UserRole.COORDINATOR and not _can_coordinator_access_student(db, current_user.id, student):
+        raise HTTPException(status_code=403, detail="Voce nao tem acesso a este aluno")
 
     # Notas scraped
     scraped_grades = db.query(ScrapedGrade).filter(ScrapedGrade.student_id == student.id).all()
@@ -503,18 +564,60 @@ def get_student_detail(
         for a in scraped_att
     ]
 
+    scraped_subjects = db.query(ScrapedSubject).filter(ScrapedSubject.student_id == student.id).all()
+    subjects = [
+        {
+            "disciplina": s.disciplina,
+            "situacao": s.situacao,
+            "periodo": s.periodo,
+            "docente": s.docente,
+            "data_inicial": s.data_inicial,
+        }
+        for s in scraped_subjects
+    ]
+
+    scraped_schedule = db.query(ScrapedSchedule).filter(ScrapedSchedule.student_id == student.id).all()
+    schedule = [
+        {
+            "dia_semana": s.dia_semana,
+            "dia_nome": s.dia_nome,
+            "disciplina": s.disciplina,
+            "horario_inicio": s.horario_inicio,
+            "horario_fim": s.horario_fim,
+            "local": s.local,
+            "professor": s.professor,
+        }
+        for s in scraped_schedule
+    ]
+    schedule.sort(key=lambda item: (item.get("dia_semana") or 99, item.get("horario_inicio") or ""))
+
+    analytics = AnalyticsService(db).get_student_overview(student.id)
+
     return {
         "student": {
             "id": student.id,
             "name": student.name,
             "email": student.email,
+            "phone": student.phone,
+            "age": student.age,
+            "gender": student.gender,
+            "cpf": student.cpf,
             "registration_number": student.registration_number,
             "course_name": student.course_name,
+            "current_period": student.current_period,
+            "class_schedule": student.class_schedule.value if student.class_schedule and hasattr(student.class_schedule, "value") else (student.class_schedule if isinstance(student.class_schedule, str) else None),
             "status": student.status.value if student.status else None,
             "enrollment_date": student.enrollment_date.isoformat() if student.enrollment_date else None,
+            "is_working": bool(student.is_working),
+            "work_schedule": student.work_schedule,
+            "sync_status": student.sync_status,
+            "last_sync_at": student.last_sync_at.isoformat() if student.last_sync_at else None,
         },
+        "analytics": analytics,
         "grades": grades,
         "attendance": attendance,
+        "subjects": subjects,
+        "schedule": schedule,
     }
 
 
