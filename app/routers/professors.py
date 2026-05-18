@@ -1,29 +1,19 @@
-"""
-Router de Professores.
-
-Endpoints para o professor ver seu perfil, alunos e overview analítico.
-"""
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from typing import Optional, List
+from typing import Optional
 
 from app.database import get_db
 from app.models.user import User, UserRole
-from app.models.professor import Professor, ProfessorCourse, ProfessorAcademicCourse
+from app.models.professor import Professor, ProfessorAcademicCourse
 from app.models.student import Student, StudentStatus
 from app.models.course import Course
 from app.models.enrollment import Enrollment
-from app.schemas.professor import (
-    ProfessorSubjectStudents,
-    ProfessorStudentResponse,
-)
+from app.models.scraped_data import ScrapedAttendance, ScrapedGrade, ScrapedSubject
 from app.security.auth import get_current_user
 from app.security.rbac import require_role
 from app.security.audit import audit_logger
 
 router = APIRouter(tags=["Professores"])
-
 
 ALLOWED_PROFESSOR_ROLES = (UserRole.PROFESSOR, UserRole.ADMIN)
 
@@ -36,10 +26,7 @@ def _ensure_professor_like_access(current_user: User):
 def _resolve_professor_profile(db: Session, current_user: User, create_for_admin: bool = False) -> Professor | None:
     professor = (
         db.query(Professor)
-        .options(
-            joinedload(Professor.professor_courses),
-            joinedload(Professor.academic_courses),
-        )
+        .options(joinedload(Professor.professor_courses), joinedload(Professor.academic_courses))
         .filter(Professor.user_id == current_user.id)
         .first()
     )
@@ -58,18 +45,83 @@ def _get_professor_academic_courses(db: Session, professor: Professor | None, cu
     if academic_course_names or current_user.role != UserRole.ADMIN:
         return academic_course_names
 
-    rows = db.query(Student.course_name).filter(
-        Student.status == StudentStatus.ACTIVE,
-        Student.course_name.isnot(None),
-    ).distinct().all()
+    rows = (
+        db.query(Student.course_name)
+        .filter(Student.status == StudentStatus.ACTIVE, Student.course_name.isnot(None))
+        .distinct()
+        .all()
+    )
     return sorted({row[0] for row in rows if row[0]})
 
 
+def _get_professor_student_ids(db: Session, professor: Professor | None, current_user: User) -> list[int]:
+    academic_course_names = _get_professor_academic_courses(db, professor, current_user)
+    query = db.query(Student.id).filter(Student.status == StudentStatus.ACTIVE)
+
+    if academic_course_names:
+        query = query.filter(Student.course_name.in_(academic_course_names))
+    elif current_user.role != UserRole.ADMIN:
+        return []
+
+    return [row[0] for row in query.distinct().all()]
+
+
+def _get_professor_subject_names(db: Session, student_ids: list[int]) -> list[str]:
+    if not student_ids:
+        return []
+
+    subject_names = set()
+    for model, column in [
+        (ScrapedSubject, ScrapedSubject.disciplina),
+        (ScrapedGrade, ScrapedGrade.disciplina),
+        (ScrapedAttendance, ScrapedAttendance.disciplina),
+    ]:
+        rows = db.query(column).filter(model.student_id.in_(student_ids)).distinct().all()
+        for (name,) in rows:
+            if name:
+                subject_names.add(str(name).strip())
+
+    enrollment_rows = (
+        db.query(Course.name)
+        .join(Enrollment, Enrollment.course_id == Course.id)
+        .filter(Enrollment.student_id.in_(student_ids))
+        .distinct()
+        .all()
+    )
+    for (name,) in enrollment_rows:
+        if name:
+            subject_names.add(str(name).strip())
+
+    return sorted(subject_names)
+
+
+def _serialize_professor_courses(db: Session, professor: Professor | None, current_user: User) -> list[dict]:
+    student_ids = _get_professor_student_ids(db, professor, current_user)
+    subject_names = _get_professor_subject_names(db, student_ids)
+    if not subject_names:
+        return []
+
+    existing_courses = {
+        course.name: course
+        for course in db.query(Course).filter(Course.name.in_(subject_names)).all()
+    }
+
+    payload = []
+    for subject_name in subject_names:
+        course = existing_courses.get(subject_name)
+        payload.append({
+            "id": course.id if course else None,
+            "name": subject_name,
+            "code": course.code if course else "",
+        })
+    return payload
+
+
 def _get_professor_course_records(db: Session, professor: Professor | None, current_user: User) -> list[Course]:
-    if professor and professor.professor_courses:
-        course_ids = [pc.course_id for pc in professor.professor_courses if pc.course_id]
-        if course_ids:
-            return db.query(Course).filter(Course.id.in_(course_ids)).all()
+    courses = _serialize_professor_courses(db, professor, current_user)
+    course_ids = [course["id"] for course in courses if course.get("id")]
+    if course_ids:
+        return db.query(Course).filter(Course.id.in_(course_ids)).order_by(Course.name.asc()).all()
 
     if current_user.role == UserRole.ADMIN:
         return db.query(Course).order_by(Course.name.asc()).all()
@@ -77,30 +129,16 @@ def _get_professor_course_records(db: Session, professor: Professor | None, curr
     return []
 
 
-# ═══════════════════════════════════════════════
-# ENDPOINTS DO PROFESSOR
-# ═══════════════════════════════════════════════
-
 @router.get("/api/professors/me")
 def get_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna perfil do professor logado."""
     _ensure_professor_like_access(current_user)
 
     professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
-        raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
-
-    # Carregar cursos (matérias/disciplinas)
-    courses = []
-    for course in _get_professor_course_records(db, professor, current_user):
-        if course:
-            courses.append({"id": course.id, "name": course.name, "code": course.code})
-
-    # Carregar cursos acadêmicos (IA, Nutrição, etc)
-    academic_courses = _get_professor_academic_courses(db, professor, current_user)
+        raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
     return {
         "id": professor.id,
@@ -108,8 +146,8 @@ def get_my_profile(
         "phone": professor.phone,
         "user_name": current_user.full_name,
         "user_email": current_user.email,
-        "courses": courses,
-        "academic_courses": academic_courses,
+        "courses": _serialize_professor_courses(db, professor, current_user),
+        "academic_courses": _get_professor_academic_courses(db, professor, current_user),
     }
 
 
@@ -119,24 +157,19 @@ def update_my_academic_courses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Atualiza os cursos acadêmicos (IA, Nutrição) que o professor atua."""
     _ensure_professor_like_access(current_user)
 
     professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
-        raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
+        raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
-    course_names = data.get("course_names", [])
-
-    # Remover antigos
+    course_names = [str(name).strip() for name in data.get("course_names", []) if str(name).strip()]
     db.query(ProfessorAcademicCourse).filter(ProfessorAcademicCourse.professor_id == professor.id).delete()
-
-    # Adicionar novos
     for name in course_names:
         db.add(ProfessorAcademicCourse(professor_id=professor.id, course_name=name))
 
     db.commit()
-    return {"detail": "Cursos acadêmicos atualizados", "course_names": course_names}
+    return {"detail": "Cursos academicos atualizados", "course_names": course_names}
 
 
 @router.get("/api/professors/me/students")
@@ -144,112 +177,54 @@ def get_my_students(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
-    """
-    Retorna alunos do professor, agrupados por disciplina.
-    
-    Busca alunos através de duas rotas:
-    1. ProfessorAcademicCourse → Student.course_name (dados scraping)
-    2. ProfessorCourse → Course → Enrollment → Student (dados manuais)
-    """
-    from app.models.scraped_data import ScrapedGrade
-
     professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
-        raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
+        raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
-    # Obter cursos acadêmicos do professor (ex: "Inteligência Artificial")
-    academic_course_names = _get_professor_academic_courses(db, professor, current_user)
-
-    # Coletar TODOS os alunos únicos que o professor deve ver
-    seen_student_ids = set()
-    all_students = []
-
-    # Rota 1: Alunos pelo curso acadêmico (Student.course_name)
-    if academic_course_names:
-        students_by_course = (
-            db.query(Student)
-            .filter(
-                Student.course_name.in_(academic_course_names),
-                Student.status == StudentStatus.ACTIVE,
-            )
-            .all()
-        )
-        for s in students_by_course:
-            if s.id not in seen_student_ids:
-                seen_student_ids.add(s.id)
-                all_students.append(s)
-
-    # Rota 2: Alunos via enrollment (dados manuais)  
-    for course in _get_professor_course_records(db, professor, current_user):
-        if not course:
-            continue
-        enrollments = db.query(Enrollment).filter(Enrollment.course_id == course.id).all()
-        for enrollment in enrollments:
-            if enrollment.student_id not in seen_student_ids:
-                student = db.query(Student).filter(
-                    Student.id == enrollment.student_id,
-                    Student.status == StudentStatus.ACTIVE,
-                ).first()
-                if student:
-                    seen_student_ids.add(student.id)
-                    all_students.append(student)
-
-    # Agora agrupar alunos por disciplina
-    # Primeiro, coletar as disciplinas que o professor selecionou
-    prof_subject_names = set()
-    for course in _get_professor_course_records(db, professor, current_user):
-        if course:
-            prof_subject_names.add(course.name)
-
-    # Se não tem disciplinas selecionadas, usar TODAS as do scraping para estes alunos
-    if not prof_subject_names and all_students:
-        student_ids = [s.id for s in all_students]
-        scraped_disciplines = (
-            db.query(ScrapedGrade.disciplina)
-            .filter(ScrapedGrade.student_id.in_(student_ids))
-            .distinct()
-            .all()
-        )
-        prof_subject_names = {d[0] for d in scraped_disciplines if d[0]}
+    student_ids = _get_professor_student_ids(db, professor, current_user)
+    students = db.query(Student).filter(Student.id.in_(student_ids), Student.status == StudentStatus.ACTIVE).all() if student_ids else []
+    subject_names = _get_professor_subject_names(db, student_ids)
 
     result = []
-    for subj_name in sorted(prof_subject_names):
-        matched_course = db.query(Course).filter(Course.name == subj_name).first()
+    for subject_name in subject_names:
+        matched_course = db.query(Course).filter(Course.name == subject_name).first()
         students_in_subject = []
-        for student in all_students:
-            # Checar se o aluno tem notas nessa disciplina (via scraping)
-            has_grade = db.query(ScrapedGrade).filter(
+        for student in students:
+            has_subject = db.query(ScrapedGrade.id).filter(
                 ScrapedGrade.student_id == student.id,
-                ScrapedGrade.disciplina == subj_name,
+                ScrapedGrade.disciplina == subject_name,
+            ).first() or db.query(ScrapedAttendance.id).filter(
+                ScrapedAttendance.student_id == student.id,
+                ScrapedAttendance.disciplina == subject_name,
+            ).first() or db.query(ScrapedSubject.id).filter(
+                ScrapedSubject.student_id == student.id,
+                ScrapedSubject.disciplina == subject_name,
             ).first()
-            
-            # Ou checar via enrollment
-            if not has_grade:
-                course = db.query(Course).filter(Course.name == subj_name).first()
-                if course:
-                    has_enrollment = db.query(Enrollment).filter(
-                        Enrollment.student_id == student.id,
-                        Enrollment.course_id == course.id,
-                    ).first()
-                    if not has_enrollment:
-                        continue
-                else:
-                    continue
 
+            if not has_subject and matched_course:
+                has_subject = db.query(Enrollment.id).filter(
+                    Enrollment.student_id == student.id,
+                    Enrollment.course_id == matched_course.id,
+                ).first()
+
+            if not has_subject:
+                continue
+
+            class_schedule = student.class_schedule.value if getattr(student.class_schedule, 'value', None) else student.class_schedule
             students_in_subject.append({
                 "student_id": student.id,
                 "student_name": student.name,
                 "registration_number": student.registration_number,
                 "course_name": student.course_name,
                 "current_period": student.current_period,
-                "class_schedule": student.class_schedule.value if student.class_schedule and hasattr(student.class_schedule, "value") else (student.class_schedule if isinstance(student.class_schedule, str) else None),
+                "class_schedule": class_schedule,
             })
 
         if students_in_subject:
-            students_in_subject.sort(key=lambda s: s.get("current_period") or 0)
+            students_in_subject.sort(key=lambda item: item.get("current_period") or 0)
             result.append({
                 "course_id": matched_course.id if matched_course else None,
-                "course_name": subj_name,
+                "course_name": subject_name,
                 "course_code": matched_course.code if matched_course else "",
                 "students": students_in_subject,
             })
@@ -259,68 +234,18 @@ def get_my_students(
 
 @router.put("/api/professors/me/courses")
 def update_my_courses(
-    data: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
-
     professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
-        raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
+        raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
-    course_ids = data.get("course_ids", [])
-
-    # Remover cursos antigos
-    db.query(ProfessorCourse).filter(ProfessorCourse.professor_id == professor.id).delete()
-
-    # Adicionar novos — aceita tanto IDs inteiros quanto nomes de disciplinas (scraping)
-    for cid in course_ids:
-        course = None
-        try:
-            cid_int = int(cid)
-            course = db.query(Course).filter(Course.id == cid_int).first()
-        except (ValueError, TypeError):
-            # É um nome de disciplina (string) — buscar ou criar Course
-            if isinstance(cid, str) and cid.strip():
-                course = db.query(Course).filter(Course.name == cid).first()
-                if not course:
-                    # Criar a disciplina no banco com campos obrigatórios
-                    import hashlib
-                    unique_code = f"PROF-{hashlib.md5(cid.encode()).hexdigest()[:6].upper()}"
-                    # Garantir que o código é único
-                    existing_code = db.query(Course).filter(Course.code == unique_code).first()
-                    if existing_code:
-                        unique_code = f"PROF-{hashlib.md5((cid + str(professor.id)).encode()).hexdigest()[:6].upper()}"
-                    course = Course(
-                        name=cid,
-                        code=unique_code,
-                        department="Geral",
-                        semester="2025.1",
-                        credits=4,
-                    )
-                    db.add(course)
-                    db.flush()
-
-        if course:
-            # Evitar duplicatas
-            existing = db.query(ProfessorCourse).filter(
-                ProfessorCourse.professor_id == professor.id,
-                ProfessorCourse.course_id == course.id,
-            ).first()
-            if not existing:
-                db.add(ProfessorCourse(professor_id=professor.id, course_id=course.id))
-
-    db.commit()
-    audit_logger.log_data_change(current_user.username, "ProfessorCourse", "UPDATE", professor.id)
-
-    # Retornar cursos atualizados
-    courses = []
-    for pc in db.query(ProfessorCourse).filter(ProfessorCourse.professor_id == professor.id).all():
-        course = db.query(Course).filter(Course.id == pc.course_id).first()
-        if course:
-            courses.append({"id": course.id, "name": course.name, "code": course.code})
-
-    return {"detail": "Disciplinas atualizadas", "courses": courses}
+    audit_logger.log_data_change(current_user.username, "ProfessorCourse", "AUTO_SYNC", professor.id)
+    return {
+        "detail": "As disciplinas do professor agora sao vinculadas automaticamente a partir dos alunos do mesmo curso com dados sincronizados.",
+        "courses": _serialize_professor_courses(db, professor, current_user),
+    }
 
 
 @router.get("/api/professors/me/overview")
@@ -329,74 +254,33 @@ def get_my_overview(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Retorna overview analítico com KPIs calculados apenas para os alunos
-    matriculados nas disciplinas do professor logado.
-    Aceita course_id opcional para filtrar por disciplina específica.
-    """
     _ensure_professor_like_access(current_user)
 
     professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
-        raise HTTPException(status_code=404, detail="Perfil de professor não encontrado")
+        raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
     from app.services.analytics_service import AnalyticsService
     from app.models.grade import Grade
-    from app.models.attendance import Attendance
     from app.analytics.utils import _round
 
     service = AnalyticsService(db)
 
-    # Buscar alunos via scraped data das disciplinas selecionadas pelo professor
-    from app.models.scraped_data import ScrapedGrade, ScrapedAttendance
-
-    # Obter nomes das disciplinas selecionadas
-    discipline_names = []
-    prof_courses = _get_professor_course_records(db, professor, current_user)
-    prof_course_ids = [course.id for course in prof_courses]
-    for course in prof_courses:
-        if course.name:
-            discipline_names.append(course.name)
+    student_ids = _get_professor_student_ids(db, professor, current_user)
+    discipline_names = _get_professor_subject_names(db, student_ids)
+    prof_course_ids = [course.id for course in _get_professor_course_records(db, professor, current_user) if course.id]
 
     if course_id:
-        # Validar que o curso pertence ao professor
-        pc = db.query(ProfessorCourse).filter(
-            ProfessorCourse.professor_id == professor.id,
-            ProfessorCourse.course_id == course_id,
-        ).first()
-        if not pc:
-            raise HTTPException(status_code=404, detail="Disciplina não encontrada no seu perfil")
-        c = db.query(Course).filter(Course.id == course_id).first()
-        discipline_names = [c.name] if c else []
-
-    # Coletar alunos com scraped data nas disciplinas selecionadas
-    seen_ids = set()
-    if discipline_names:
-        for ScrapedModel, col in [
-            (ScrapedGrade, ScrapedGrade.disciplina),
-            (ScrapedAttendance, ScrapedAttendance.disciplina),
-        ]:
-            rows = (
-                db.query(ScrapedModel.student_id)
-                .filter(col.in_(discipline_names))
-                .distinct()
-                .all()
-            )
-            for (sid,) in rows:
-                seen_ids.add(sid)
-
-    # Também incluir alunos via enrollment
-    if prof_course_ids:
-        ids_from_enrollment = (
-            db.query(Enrollment.student_id)
-            .filter(Enrollment.course_id.in_(prof_course_ids))
-            .distinct()
-            .all()
-        )
-        for (sid,) in ids_from_enrollment:
-            seen_ids.add(sid)
-
-    student_ids = list(seen_ids)
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course or course.name not in discipline_names:
+            raise HTTPException(status_code=404, detail="Disciplina nao encontrada no seu perfil")
+        discipline_names = [course.name]
+        student_ids = [
+            sid for sid in student_ids
+            if db.query(ScrapedGrade.id).filter(ScrapedGrade.student_id == sid, ScrapedGrade.disciplina == course.name).first()
+            or db.query(ScrapedAttendance.id).filter(ScrapedAttendance.student_id == sid, ScrapedAttendance.disciplina == course.name).first()
+            or db.query(ScrapedSubject.id).filter(ScrapedSubject.student_id == sid, ScrapedSubject.disciplina == course.name).first()
+        ]
 
     if not student_ids and current_user.role == UserRole.ADMIN:
         active_students = db.query(Student).filter(Student.status == StudentStatus.ACTIVE).all()
@@ -405,70 +289,65 @@ def get_my_overview(
     if not student_ids:
         return {
             "kpis": {
-                "total_students": 0, "active_students": 0, "total_courses": 0,
-                "average_gpa": 0.0, "average_attendance_rate": 0.0,
-                "at_risk_count": 0, "pass_rate": 0.0,
+                "total_students": 0,
+                "active_students": 0,
+                "total_courses": 0,
+                "average_gpa": 0.0,
+                "average_attendance_rate": 0.0,
+                "at_risk_count": 0,
+                "pass_rate": 0.0,
             },
             "risk_summary": {"low": 0, "medium": 0, "high": 0, "critical": 0},
             "top_at_risk": [],
         }
 
-    # Filtrar apenas ativos
-    active_students = db.query(Student).filter(
-        Student.id.in_(student_ids),
-        Student.status == StudentStatus.ACTIVE,
-    ).all()
-    active_ids = [s.id for s in active_students]
+    active_students = db.query(Student).filter(Student.id.in_(student_ids), Student.status == StudentStatus.ACTIVE).all()
+    active_ids = [student.id for student in active_students]
 
-    # KPIs
-    gpas = [service._get_student_gpa(sid) for sid in active_ids]
-    attendance_rates = [service._get_student_attendance_rate(sid) for sid in active_ids]
-
-    # Notas dos cursos do professor
-    all_grades = [g.value for g in db.query(Grade).filter(Grade.course_id.in_(prof_course_ids)).all()]
+    gpas = [service._get_student_gpa(student_id) for student_id in active_ids]
+    attendance_rates = [service._get_student_attendance_rate(student_id) for student_id in active_ids]
+    all_grades = [grade.value for grade in db.query(Grade).filter(Grade.course_id.in_(prof_course_ids)).all()] if prof_course_ids else []
 
     avg_gpa = _round(sum(gpas) / len(gpas), 2) if gpas else 0.0
-    avg_att = _round(sum(attendance_rates) / len(attendance_rates), 2) if attendance_rates else 0.0
-    at_risk = sum(1 for g in gpas if g < 5.0)
+    avg_attendance = _round(sum(attendance_rates) / len(attendance_rates), 2) if attendance_rates else 0.0
+    at_risk = sum(1 for gpa in gpas if gpa < 5.0)
     pass_info = service.stats.compute_pass_rate(all_grades) if all_grades else {"pass_rate": 0.0}
 
-    # Risk summary
     risk_summary = {"low": 0, "medium": 0, "high": 0, "critical": 0}
-    for gpa, att in zip(gpas, attendance_rates):
-        if gpa < 4.0 or att < 60.0:
+    for gpa, attendance in zip(gpas, attendance_rates):
+        if gpa < 4.0 or attendance < 60.0:
             risk_summary["critical"] += 1
-        elif gpa < 5.0 or att < 70.0:
+        elif gpa < 5.0 or attendance < 70.0:
             risk_summary["high"] += 1
-        elif gpa < 6.0 or att < 80.0:
+        elif gpa < 6.0 or attendance < 80.0:
             risk_summary["medium"] += 1
         else:
             risk_summary["low"] += 1
 
-    # Top at risk
     student_risks = []
-    for s in active_students:
-        gpa = service._get_student_gpa(s.id)
-        att = service._get_student_attendance_rate(s.id)
-        risk_score = max(0.0, min(1.0, (1 - gpa / 10) * 0.6 + (1 - att / 100) * 0.4))
+    for student in active_students:
+        gpa = service._get_student_gpa(student.id)
+        attendance = service._get_student_attendance_rate(student.id)
+        risk_score = max(0.0, min(1.0, (1 - gpa / 10) * 0.6 + (1 - attendance / 100) * 0.4))
         student_risks.append({
-            "student_id": s.id,
-            "student_name": s.name,
-            "registration_number": s.registration_number,
-            "course_name": s.course_name,
+            "student_id": student.id,
+            "student_name": student.name,
+            "registration_number": student.registration_number,
+            "course_name": student.course_name,
             "gpa": _round(gpa, 2),
-            "attendance_rate": _round(att, 2),
+            "attendance_rate": _round(attendance, 2),
             "risk_score": _round(risk_score, 4),
             "risk_level": service._classify_risk(risk_score),
         })
-    student_risks.sort(key=lambda x: x["risk_score"], reverse=True)
+    student_risks.sort(key=lambda item: item["risk_score"], reverse=True)
 
     return {
         "kpis": {
             "total_students": len(student_ids),
             "active_students": len(active_ids),
-            "total_courses": len(prof_course_ids),
+            "total_courses": len(discipline_names),
             "average_gpa": avg_gpa,
-            "average_attendance_rate": avg_att,
+            "average_attendance_rate": avg_attendance,
             "at_risk_count": at_risk,
             "pass_rate": pass_info.get("pass_rate", 0.0),
         },
@@ -477,68 +356,13 @@ def get_my_overview(
     }
 
 
-# ═══════════════════════════════════════════════
-# ENDPOINT PÚBLICO: disciplinas disponíveis (para cadastro de professor)
-# ═══════════════════════════════════════════════
-
 @router.get("/api/courses/available")
 def list_available_courses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Lista disciplinas disponíveis para seleção no cadastro/perfil de professor.
-    Retorna apenas disciplinas que têm dados de scraping de alunos matriculados
-    nos cursos acadêmicos selecionados pelo professor.
-    """
     professor = _resolve_professor_profile(db, current_user, create_for_admin=True)
     if not professor:
         return []
 
-    academic_course_names = _get_professor_academic_courses(db, professor, current_user)
-    
-    if not academic_course_names:
-        return []
-
-    from app.models.scraped_data import ScrapedSubject, ScrapedGrade, ScrapedAttendance
-
-    # Buscar disciplinas dos dados de scraping
-    scraped_names = set()
-    for ScrapedModel, col in [
-        (ScrapedSubject, ScrapedSubject.disciplina),
-        (ScrapedGrade, ScrapedGrade.disciplina),
-        (ScrapedAttendance, ScrapedAttendance.disciplina),
-    ]:
-        rows = (
-            db.query(col)
-            .join(Student, Student.id == ScrapedModel.student_id)
-            .filter(Student.course_name.in_(academic_course_names))
-            .distinct()
-            .all()
-        )
-        for (name,) in rows:
-            if name:
-                scraped_names.add(name)
-
-    result = []
-    seen = set()
-    for disc_name in sorted(scraped_names):
-        if disc_name.upper() not in seen:
-            seen.add(disc_name.upper())
-            existing = db.query(Course).filter(Course.name == disc_name).first()
-            if existing:
-                result.append({
-                    "id": existing.id,
-                    "name": existing.name,
-                    "code": existing.code,
-                    "department": existing.department,
-                })
-            else:
-                result.append({
-                    "id": None,
-                    "name": disc_name,
-                    "code": "",
-                    "department": None,
-                })
-
-    return result
+    return _serialize_professor_courses(db, professor, current_user)

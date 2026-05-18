@@ -27,48 +27,12 @@ router = APIRouter(prefix="/api/students", tags=["Alunos"])
 
 
 def _can_professor_access_student(db: Session, professor_user_id: int, student: Student) -> bool:
-    from app.models.course import Course
-    from app.models.enrollment import Enrollment
-
     professor = db.query(Professor).filter(Professor.user_id == professor_user_id).first()
     if not professor:
         return False
 
     academic_course_names = {ac.course_name for ac in professor.academic_courses if ac.course_name}
-    if student.course_name in academic_course_names:
-        return True
-
-    selected_course_ids = [pc.course_id for pc in professor.professor_courses]
-    if selected_course_ids:
-        has_enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == student.id,
-            Enrollment.course_id.in_(selected_course_ids),
-        ).first()
-        if has_enrollment:
-            return True
-
-    selected_course_names = []
-    for course_id in selected_course_ids:
-        course = db.query(Course).filter(Course.id == course_id).first()
-        if course and course.name:
-            selected_course_names.append(course.name)
-
-    if selected_course_names:
-        has_scraped = db.query(ScrapedGrade).filter(
-            ScrapedGrade.student_id == student.id,
-            ScrapedGrade.disciplina.in_(selected_course_names),
-        ).first()
-        if has_scraped:
-            return True
-
-        has_scraped_attendance = db.query(ScrapedAttendance).filter(
-            ScrapedAttendance.student_id == student.id,
-            ScrapedAttendance.disciplina.in_(selected_course_names),
-        ).first()
-        if has_scraped_attendance:
-            return True
-
-    return False
+    return bool(student.course_name and student.course_name in academic_course_names)
 
 
 def _can_coordinator_access_student(db: Session, coordinator_user_id: int, student: Student) -> bool:
@@ -441,57 +405,19 @@ def list_students(
 
     query = db.query(Student)
 
-    # Se for professor, filtrar alunos que têm dados nas disciplinas selecionadas
     if current_user.role == UserRole.PROFESSOR:
-        from app.models.professor import ProfessorAcademicCourse
-        from app.models.scraped_data import ScrapedGrade, ScrapedAttendance
-        from app.models.course import Course
         professor = db.query(Professor).filter(Professor.user_id == current_user.id).first()
-        if professor:
-            seen_ids = set()
-
-            # Obter nomes das disciplinas selecionadas pelo professor
-            discipline_names = []
-            for pc in professor.professor_courses:
-                course = db.query(Course).filter(Course.id == pc.course_id).first()
-                if course:
-                    discipline_names.append(course.name)
-
-            # Rota 1: Alunos via scraped data (disciplinas selecionadas)
-            if discipline_names:
-                for ScrapedModel, col in [
-                    (ScrapedGrade, ScrapedGrade.disciplina),
-                    (ScrapedAttendance, ScrapedAttendance.disciplina),
-                ]:
-                    rows = (
-                        db.query(ScrapedModel.student_id)
-                        .filter(col.in_(discipline_names))
-                        .distinct()
-                        .all()
-                    )
-                    for (sid,) in rows:
-                        seen_ids.add(sid)
-
-            # Rota 2: Alunos via enrollment (dados manuais)
-            prof_course_ids = [pc.course_id for pc in professor.professor_courses]
-            if prof_course_ids:
-                ids_from_enrollment = (
-                    db.query(Enrollment.student_id)
-                    .filter(Enrollment.course_id.in_(prof_course_ids))
-                    .distinct()
-                    .all()
-                )
-                for (sid,) in ids_from_enrollment:
-                    seen_ids.add(sid)
-
-            student_ids = list(seen_ids)
-            if student_ids:
-                query = query.filter(Student.id.in_(student_ids))
-            else:
-                return StudentListResponse(total=0, students=[])
-        else:
-            # Se perfil de professor não existe mas o user tem a role, retorna lista vazia
+        if not professor:
             return StudentListResponse(total=0, students=[])
+
+        academic_course_names = [ac.course_name for ac in professor.academic_courses if ac.course_name]
+        if not academic_course_names:
+            return StudentListResponse(total=0, students=[])
+
+        query = query.filter(
+            Student.status == StudentStatus.ACTIVE,
+            Student.course_name.in_(academic_course_names),
+        )
 
     if status:
         query = query.filter(Student.status == StudentStatus(status))

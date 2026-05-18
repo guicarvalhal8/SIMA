@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.student import Student, ClassSchedule
-from app.models.professor import Professor, ProfessorCourse, ProfessorAcademicCourse
+from app.models.professor import Professor, ProfessorAcademicCourse
 from app.models.coordinator import Coordinator
 from app.models.staff_code import StaffRegistrationCode, StaffRole
 from app.schemas.auth import (
@@ -164,15 +164,6 @@ def register_professor(data: ProfessorRegisterRequest, db: Session = Depends(get
     )
     db.add(professor)
     db.flush()
-
-    # Associar disciplinas (matérias) — só IDs inteiros válidos
-    for course_id in data.course_ids:
-        if isinstance(course_id, int):
-            pc = ProfessorCourse(
-                professor_id=professor.id,
-                course_id=course_id,
-            )
-            db.add(pc)
 
     # Associar cursos acadêmicos (IA, Nutrição, etc)
     for name in data.academic_course_names:

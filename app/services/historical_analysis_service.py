@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.models.coordinator import Coordinator
 from app.models.course import Course
+from app.models.enrollment import Enrollment
 from app.models.historical_data import HistoricalRecord
 from app.models.professor import Professor
-from app.models.student import Student
+from app.models.scraped_data import ScrapedAttendance, ScrapedGrade, ScrapedSubject
+from app.models.student import Student, StudentStatus
 from app.models.user import User, UserRole
 from app.services.statistical_risk_service import StatisticalRiskService
 
@@ -265,25 +267,58 @@ class HistoricalAnalysisService:
             for course_name in (ac.course_name for ac in professor.academic_courses)
             if str(course_name or "").strip()
         ]
+        academic_course_keys = {
+            _normalize_text(name)
+            for name in academic_courses
+            if _normalize_text(name)
+        }
 
-        subject_names: list[str] = []
-        if professor.professor_courses:
-            course_ids = [item.course_id for item in professor.professor_courses if item.course_id]
-            if course_ids:
-                linked_courses = self.db.query(Course).filter(Course.id.in_(course_ids)).all()
-                subject_names = [
-                    course.name.strip()
-                    for course in linked_courses
-                    if str(course.name or "").strip()
-                ]
+        subject_names: set[str] = set()
+        if academic_course_keys:
+            student_rows = (
+                self.db.query(Student.id, Student.course_name)
+                .filter(
+                    Student.status == StudentStatus.ACTIVE,
+                    Student.course_name.isnot(None),
+                )
+                .all()
+            )
+            student_ids = [
+                student_id
+                for student_id, student_course_name in student_rows
+                if student_course_name and self._matches_any_scope(student_course_name, academic_course_keys, allow_contains=True)
+            ]
+
+            if student_ids:
+                for model, column in [
+                    (ScrapedSubject, ScrapedSubject.disciplina),
+                    (ScrapedGrade, ScrapedGrade.disciplina),
+                    (ScrapedAttendance, ScrapedAttendance.disciplina),
+                ]:
+                    rows = self.db.query(column).filter(model.student_id.in_(student_ids)).distinct().all()
+                    for (value,) in rows:
+                        normalized_value = str(value or "").strip()
+                        if normalized_value:
+                            subject_names.add(normalized_value)
+
+                enrollment_rows = (
+                    self.db.query(Course.name)
+                    .join(Enrollment, Enrollment.course_id == Course.id)
+                    .filter(Enrollment.student_id.in_(student_ids))
+                    .distinct()
+                    .all()
+                )
+                for (value,) in enrollment_rows:
+                    normalized_value = str(value or "").strip()
+                    if normalized_value:
+                        subject_names.add(normalized_value)
 
         return {
             "academic_courses": academic_courses,
-            "subjects": subject_names,
-            "academic_course_keys": {_normalize_text(name) for name in academic_courses if _normalize_text(name)},
+            "subjects": sorted(subject_names),
+            "academic_course_keys": academic_course_keys,
             "subject_keys": {_normalize_text(name) for name in subject_names if _normalize_text(name)},
         }
-
     def _matches_any_scope(self, value: str | None, scope_keys: set[str], allow_contains: bool = True) -> bool:
         normalized_value = _normalize_text(value)
         if not normalized_value:
