@@ -30,6 +30,7 @@ from app.models.scraped_data import (
     ScrapedSubject,
 )
 from app.models.historical_data import HistoricalRecord  # noqa: F401
+from app.utils.attendance import resolve_attendance_percentage, resolve_total_classes
 from app.routers import (
     analytics,
     attendance,
@@ -479,6 +480,30 @@ def ensure_demo_historical_data(db, professor_user):
     db.flush()
 
 
+def repair_scraped_attendance_data(db):
+    """Normalize legacy scraped attendance rows that were saved with incorrect percentages."""
+    rows = db.query(ScrapedAttendance).all()
+    updated = 0
+
+    for row in rows:
+        normalized_total = resolve_total_classes(row.total_aulas, row.total_faltas, row.percentual_presenca)
+        normalized_percentage = resolve_attendance_percentage(row.percentual_presenca, row.total_faltas, row.total_aulas)
+
+        if normalized_total is not None and row.total_aulas != normalized_total:
+            row.total_aulas = normalized_total
+            updated += 1
+
+        if normalized_percentage is not None and abs((row.percentual_presenca or 0.0) - normalized_percentage) > 0.01:
+            row.percentual_presenca = normalized_percentage
+            updated += 1
+
+    if updated:
+        db.commit()
+        print(f"OK: repaired {updated} scraped attendance values.")
+    else:
+        print("INFO: scraped attendance values already normalized.")
+
+
 def ensure_demo_credentials(db):
     """Create or refresh stable demo credentials for student, professor and coordinator."""
     demo_courses = ensure_demo_courses(db)
@@ -528,6 +553,7 @@ async def lifespan(app: FastAPI):
             print("INFO: database already has student data.")
 
         ensure_demo_credentials(db)
+        repair_scraped_attendance_data(db)
     finally:
         db.close()
 
