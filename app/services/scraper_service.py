@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.utils.attendance import resolve_attendance_percentage
+from app.utils.attendance import resolve_attendance_percentage, resolve_total_classes
 from app.utils.subject_name import clean_subject_name, normalize_subject_key
 
 logger = logging.getLogger(__name__)
@@ -376,21 +376,26 @@ class LyceumScraperService:
 
                 faltas = 0
                 frequencia = 100.0
+                total_aulas = None
                 for item in items:
                     text = item.text.strip()
                     badge = item.find_elements("css selector", "span.badge")
                     if not badge:
                         continue
                     value = badge[0].text.strip()
-                    if "Falta" in text:
+                    lowered = text.lower()
+                    if "falta" in lowered:
                         faltas = self._parse_int(value)
-                    elif "Frequencia" in text or "Frequ" in text:
+                    elif "frequencia" in lowered or "frequ" in lowered or "presenca" in lowered:
                         frequencia = self._parse_float(value)
+                    elif "aula" in lowered or "carga" in lowered or "horas" in lowered:
+                        parsed_classes = self._parse_int(value)
+                        total_aulas = parsed_classes if parsed_classes > 0 else total_aulas
 
                 attendance.append({
                     "disciplina": disciplina,
                     "total_faltas": faltas,
-                    "total_aulas": 60,
+                    "total_aulas": resolve_total_classes(total_aulas, faltas, frequencia),
                     "percentual_presenca": frequencia,
                 })
             except Exception:
@@ -485,8 +490,8 @@ class LyceumScraperService:
                     student_id=student_id,
                     disciplina=clean_subject_name(attendance.get("disciplina", "")),
                     total_faltas=attendance.get("total_faltas", 0),
-                    total_aulas=attendance.get("total_aulas", 60),
-                    percentual_presenca=resolve_attendance_percentage(attendance.get("percentual_presenca", 100.0), attendance.get("total_faltas", 0), attendance.get("total_aulas", 60)) or 100.0,
+                    total_aulas=resolve_total_classes(attendance.get("total_aulas"), attendance.get("total_faltas", 0), attendance.get("percentual_presenca", 100.0)),
+                    percentual_presenca=resolve_attendance_percentage(attendance.get("percentual_presenca", 100.0), attendance.get("total_faltas", 0), attendance.get("total_aulas")) or 100.0,
                 )
             )
         db.commit()
