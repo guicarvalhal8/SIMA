@@ -486,22 +486,22 @@ def repair_scraped_attendance_data(db):
     updated = 0
 
     for row in rows:
-        normalized_absences, normalized_total, normalized_percentage = normalize_attendance_record(
+        attendance_payload = normalize_attendance_record(
             row.total_faltas,
             row.total_aulas,
             row.percentual_presenca,
         )
 
-        if normalized_absences is not None and row.total_faltas != normalized_absences:
-            row.total_faltas = normalized_absences
+        if row.total_faltas != attendance_payload["total_faltas"]:
+            row.total_faltas = attendance_payload["total_faltas"]
             updated += 1
 
-        if normalized_total is not None and row.total_aulas != normalized_total:
-            row.total_aulas = normalized_total
+        if attendance_payload["total_aulas"] is not None and row.total_aulas != attendance_payload["total_aulas"]:
+            row.total_aulas = attendance_payload["total_aulas"]
             updated += 1
 
-        if normalized_percentage is not None and abs((row.percentual_presenca or 0.0) - normalized_percentage) > 0.01:
-            row.percentual_presenca = normalized_percentage
+        if attendance_payload["percentual_presenca"] is not None and abs((row.percentual_presenca or 0.0) - attendance_payload["percentual_presenca"]) > 0.01:
+            row.percentual_presenca = attendance_payload["percentual_presenca"]
             updated += 1
 
     if updated:

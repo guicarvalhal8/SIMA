@@ -148,16 +148,17 @@ def get_my_attendance(
 
     attendance_by_subject = []
     for a in scraped:
-        total_faltas, total_aulas, percentual_presenca = normalize_attendance_record(
+        attendance_payload = normalize_attendance_record(
             a.total_faltas,
             a.total_aulas,
             a.percentual_presenca,
         )
         attendance_by_subject.append({
             "disciplina": a.disciplina,
-            "total_faltas": total_faltas,
-            "total_aulas": total_aulas,
-            "percentual_presenca": percentual_presenca,
+            "total_faltas": attendance_payload["total_faltas"],
+            "total_aulas": attendance_payload["total_aulas"],
+            "percentual_presenca": attendance_payload["percentual_presenca"],
+            "faltas_confirmadas": attendance_payload["faltas_confirmadas"],
         })
 
     return {
@@ -488,16 +489,17 @@ def get_student_detail(
     scraped_att = db.query(ScrapedAttendance).filter(ScrapedAttendance.student_id == student.id).all()
     attendance = []
     for a in scraped_att:
-        total_faltas, total_aulas, percentual_presenca = normalize_attendance_record(
+        attendance_payload = normalize_attendance_record(
             a.total_faltas,
             a.total_aulas,
             a.percentual_presenca,
         )
         attendance.append({
             "disciplina": a.disciplina,
-            "total_faltas": total_faltas,
-            "total_aulas": total_aulas,
-            "percentual_presenca": percentual_presenca,
+            "total_faltas": attendance_payload["total_faltas"],
+            "total_aulas": attendance_payload["total_aulas"],
+            "percentual_presenca": attendance_payload["percentual_presenca"],
+            "faltas_confirmadas": attendance_payload["faltas_confirmadas"],
         })
 
     scraped_subjects = db.query(ScrapedSubject).filter(ScrapedSubject.student_id == student.id).all()

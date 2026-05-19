@@ -355,6 +355,22 @@ function GradesTab({ grades }) {
     );
 }
 
+function formatAttendanceSummary(item) {
+    const totalClasses = item?.total_aulas;
+    const absences = item?.total_faltas;
+    const hasConfirmedAbsences = item?.faltas_confirmadas !== false && absences != null;
+
+    if (hasConfirmedAbsences && totalClasses != null) {
+        return `${absences} faltas em ${totalClasses} aulas`;
+    }
+
+    if (totalClasses != null) {
+        return `${totalClasses} aulas registradas no portal`;
+    }
+
+    return 'Presenca sincronizada do portal academico';
+}
+
 function AttendanceTab({ attendance }) {
     if (!attendance.length) {
         return <EmptyPanel icon={Clock} title="Nenhuma frequencia encontrada" description="Os dados de frequencia serao exibidos aqui apos a sincronizacao." />;
@@ -373,7 +389,7 @@ function AttendanceTab({ attendance }) {
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
-                            <p className="mt-1 text-sm text-text-secondary">{item.total_faltas} faltas em {item.total_aulas} aulas</p>
+                            <p className="mt-1 text-sm text-text-secondary">{formatAttendanceSummary(item)}</p>
                         </div>
                         <Badge variant={item.percentual_presenca >= 75 ? 'success' : item.percentual_presenca >= 60 ? 'warning' : 'danger'}>
                             {item.percentual_presenca?.toFixed(0)}%

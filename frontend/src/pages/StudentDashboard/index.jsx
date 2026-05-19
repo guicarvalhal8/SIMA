@@ -446,7 +446,7 @@ export function StudentDashboard() {
                                     <div>
                                         <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
                                         <p className="mt-1 text-sm text-text-secondary">
-                                            {item.total_faltas} faltas em {item.total_aulas} aulas
+                                            {formatAttendanceSummary(item)}
                                         </p>
                                     </div>
                                     <Badge variant={item.percentual_presenca >= 75 ? 'success' : item.percentual_presenca >= 50 ? 'warning' : 'danger'}>
@@ -580,6 +580,22 @@ function getRiskConfig(level) {
 function getAverage(items = [], key) {
     if (!items.length) return 0;
     return items.reduce((sum, item) => sum + Number(item[key] || 0), 0) / items.length;
+}
+
+function formatAttendanceSummary(item) {
+    const totalClasses = item?.total_aulas;
+    const absences = item?.total_faltas;
+    const hasConfirmedAbsences = item?.faltas_confirmadas !== false && absences != null;
+
+    if (hasConfirmedAbsences && totalClasses != null) {
+        return `${absences} faltas em ${totalClasses} aulas`;
+    }
+
+    if (totalClasses != null) {
+        return `${totalClasses} aulas registradas no portal`;
+    }
+
+    return 'Presenca sincronizada do portal academico';
 }
 
 function getGradeColor(value) {

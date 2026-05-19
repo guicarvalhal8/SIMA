@@ -485,7 +485,7 @@ class LyceumScraperService:
 
         db.query(ScrapedAttendance).filter(ScrapedAttendance.student_id == student_id).delete()
         for attendance in attendance_data:
-            total_faltas, total_aulas, percentual_presenca = normalize_attendance_record(
+            attendance_payload = normalize_attendance_record(
                 attendance.get("total_faltas", 0),
                 attendance.get("total_aulas"),
                 attendance.get("percentual_presenca", 100.0),
@@ -494,9 +494,9 @@ class LyceumScraperService:
                 ScrapedAttendance(
                     student_id=student_id,
                     disciplina=clean_subject_name(attendance.get("disciplina", "")),
-                    total_faltas=total_faltas or 0,
-                    total_aulas=total_aulas,
-                    percentual_presenca=percentual_presenca or 100.0,
+                    total_faltas=attendance_payload["total_faltas"],
+                    total_aulas=attendance_payload["total_aulas"],
+                    percentual_presenca=attendance_payload["percentual_presenca"] or 100.0,
                 )
             )
         db.commit()
