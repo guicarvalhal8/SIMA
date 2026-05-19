@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-    ArrowLeft,
     BookOpen,
     Briefcase,
     CheckCircle,
@@ -20,6 +19,7 @@ import { fetchAcademicCourses } from '@/constants/academicCourses';
 import { AuthAlert, AuthBackButton, AuthCard, AuthLayout, AuthSuccessState } from '@/components/auth/AuthLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { digitsOnly, isValidEmail, isValidPhone, normalizeText } from '@/lib/formValidation';
 
 export function ProfessorRegister() {
     const navigate = useNavigate();
@@ -51,11 +51,11 @@ export function ProfessorRegister() {
 
     const toggleAcademicCourse = (name) => {
         setForm((previous) => {
-            const exists = previous.academic_courses.includes(name);
+            const exists = previous.academic_courses.some((course) => normalizeText(course) === normalizeText(name));
             return {
                 ...previous,
                 academic_courses: exists
-                    ? previous.academic_courses.filter((course) => course !== name)
+                    ? previous.academic_courses.filter((course) => normalizeText(course) !== normalizeText(name))
                     : [...previous.academic_courses, name],
             };
         });
@@ -77,12 +77,16 @@ export function ProfessorRegister() {
             setError('As senhas nao coincidem.');
             return;
         }
-        if (!form.name || form.name.length < 2) {
+        if (!form.name || form.name.trim().length < 2) {
             setError('Informe o nome completo.');
             return;
         }
-        if (!form.email) {
-            setError('Informe um e-mail valido.');
+        if (!isValidEmail(form.email)) {
+            setError('Informe um e-mail valido com @.');
+            return;
+        }
+        if (form.phone && !isValidPhone(form.phone)) {
+            setError('Informe um celular apenas com numeros e 10 ou 11 digitos.');
             return;
         }
         if (form.academic_courses.length === 0) {
@@ -95,8 +99,8 @@ export function ProfessorRegister() {
             await api.post('/auth/register/professor', {
                 registration_code: form.registration_code,
                 password: form.password,
-                name: form.name,
-                email: form.email,
+                name: form.name.trim(),
+                email: form.email.trim().toLowerCase(),
                 phone: form.phone || null,
                 academic_course_names: form.academic_courses,
             });
@@ -128,8 +132,8 @@ export function ProfessorRegister() {
     }
 
     const filteredCourses = availableAcademicCourses
-        .filter((course) => course.toLowerCase().includes(courseSearch.toLowerCase()))
-        .filter((course) => !form.academic_courses.includes(course));
+        .filter((course) => normalizeText(course).includes(normalizeText(courseSearch)))
+        .filter((course) => !form.academic_courses.some((selected) => normalizeText(selected) === normalizeText(course)));
 
     return (
         <AuthLayout>
@@ -147,7 +151,7 @@ export function ProfessorRegister() {
                         placeholder="Ex: 20001"
                         icon={Hash}
                         value={form.registration_code}
-                        onChange={(event) => updateField('registration_code', event.target.value.replace(/\D/g, '').slice(0, 5))}
+                        onChange={(event) => updateField('registration_code', digitsOnly(event.target.value, 5))}
                         required
                         maxLength={5}
                     />
@@ -191,13 +195,17 @@ export function ProfessorRegister() {
                             value={form.email}
                             onChange={(event) => updateField('email', event.target.value)}
                             required
+                            description="Obrigatorio informar um e-mail valido com @."
                         />
                         <Input
-                            label="Telefone"
-                            placeholder="(00) 00000-0000"
+                            label="Celular"
+                            placeholder="Somente numeros"
                             icon={Phone}
                             value={form.phone}
-                            onChange={(event) => updateField('phone', event.target.value)}
+                            onChange={(event) => updateField('phone', digitsOnly(event.target.value, 11))}
+                            inputMode="numeric"
+                            maxLength={11}
+                            description="Digite apenas numeros, com 10 ou 11 digitos."
                         />
                     </div>
 
@@ -253,7 +261,7 @@ export function ProfessorRegister() {
                             <div className="fixed inset-0 z-40" onClick={() => setShowCourseDropdown(false)} />
                         ) : null}
 
-                        {showCourseDropdown && courseSearch ? (
+                        {showCourseDropdown ? (
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}

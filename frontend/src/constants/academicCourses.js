@@ -27,20 +27,45 @@ export const ACADEMIC_COURSE_FALLBACK = [
     'Relacoes Internacionais',
 ];
 
+function normalizeCourseName(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
+function dedupeAcademicCourses(values) {
+    const uniqueValues = new Map();
+
+    values.forEach((value) => {
+        const cleaned = String(value || '').trim();
+        const normalized = normalizeCourseName(cleaned);
+
+        if (!cleaned || !normalized || uniqueValues.has(normalized)) {
+            return;
+        }
+
+        uniqueValues.set(normalized, cleaned);
+    });
+
+    return Array.from(uniqueValues.values()).sort((left, right) => (
+        left.localeCompare(right, 'pt-BR', { sensitivity: 'base' })
+    ));
+}
+
 export async function fetchAcademicCourses(api) {
     try {
         const response = await api.get('/courses/academic-courses');
         const values = Array.isArray(response.data) ? response.data : [];
-        const cleaned = values
-            .map((value) => String(value || '').trim())
-            .filter(Boolean);
+        const merged = dedupeAcademicCourses([...values, ...ACADEMIC_COURSE_FALLBACK]);
 
-        if (cleaned.length > 0) {
-            return [...new Set(cleaned)].sort((left, right) => left.localeCompare(right));
+        if (merged.length > 0) {
+            return merged;
         }
     } catch (error) {
         console.error('Erro ao carregar cursos academicos', error);
     }
 
-    return ACADEMIC_COURSE_FALLBACK;
+    return dedupeAcademicCourses(ACADEMIC_COURSE_FALLBACK);
 }

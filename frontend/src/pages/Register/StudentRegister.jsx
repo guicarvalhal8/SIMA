@@ -19,6 +19,7 @@ import { AuthAlert, AuthBackButton, AuthCard, AuthLayout, AuthSuccessState } fro
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { digitsOnly, isValidCpf, isValidEmail, isValidPhone } from '@/lib/formValidation';
 
 const STEPS = [
     { title: 'Dados pessoais', subtitle: 'Identificacao e contato institucional.' },
@@ -64,8 +65,9 @@ export function StudentRegister() {
     const validateStep = () => {
         if (step === 0) {
             if (!form.name || form.name.trim().length < 2) return 'Informe o nome completo.';
-            if (!form.email) return 'Informe um e-mail valido.';
-            if (!form.cpf || form.cpf.replace(/\D/g, '').length < 11) return 'Informe um CPF valido.';
+            if (!isValidEmail(form.email)) return 'Informe um e-mail valido com @.';
+            if (form.phone && !isValidPhone(form.phone)) return 'Informe um celular apenas com numeros e 10 ou 11 digitos.';
+            if (!isValidCpf(form.cpf)) return 'Informe um CPF valido com 11 digitos numericos.';
         }
         if (step === 1) {
             if (!form.password || form.password.length < 6) return 'A senha deve ter no minimo 6 caracteres.';
@@ -109,12 +111,12 @@ export function StudentRegister() {
             await api.post('/auth/register/student', {
                 password: form.password,
                 name: form.name.trim(),
-                email: form.email.trim(),
+                email: form.email.trim().toLowerCase(),
                 phone: form.phone || null,
                 age: form.age ? parseInt(form.age, 10) : null,
                 gender: form.gender || null,
                 cpf: form.cpf,
-                registration_number: form.registration_number,
+                registration_number: form.registration_number.trim(),
                 course_name: form.course_name,
                 current_period: form.current_period ? parseInt(form.current_period, 10) : null,
                 class_schedule: form.class_schedule || null,
@@ -200,11 +202,11 @@ export function StudentRegister() {
                             <>
                                 <Input label="Nome completo" placeholder="Seu nome completo" icon={User} value={form.name} onChange={(event) => updateField('name', event.target.value)} required />
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <Input label="E-mail" type="email" placeholder="seu@email.com" icon={Mail} value={form.email} onChange={(event) => updateField('email', event.target.value)} required />
-                                    <Input label="Telefone" placeholder="(00) 00000-0000" icon={Phone} value={form.phone} onChange={(event) => updateField('phone', event.target.value)} />
+                                    <Input label="E-mail" type="email" placeholder="seu@email.com" icon={Mail} value={form.email} onChange={(event) => updateField('email', event.target.value)} required description="Obrigatorio informar um e-mail valido com @." />
+                                    <Input label="Celular" placeholder="Somente numeros" icon={Phone} value={form.phone} onChange={(event) => updateField('phone', digitsOnly(event.target.value, 11))} inputMode="numeric" maxLength={11} description="Digite apenas numeros, com 10 ou 11 digitos." />
                                 </div>
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <Input label="CPF" placeholder="000.000.000-00" icon={Hash} value={form.cpf} onChange={(event) => updateField('cpf', event.target.value)} required />
+                                    <Input label="CPF" placeholder="Somente numeros" icon={Hash} value={form.cpf} onChange={(event) => updateField('cpf', digitsOnly(event.target.value, 11))} inputMode="numeric" maxLength={11} required description="Digite apenas numeros. O CPF precisa ter 11 digitos validos." />
                                     <Input label="Idade" type="number" placeholder="18" value={form.age} onChange={(event) => updateField('age', event.target.value)} />
                                 </div>
                                 <Select label="Genero" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>

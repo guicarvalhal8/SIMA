@@ -1,5 +1,12 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional
+
+from app.schemas.validators import (
+    digits_only,
+    validate_cpf_value,
+    validate_email_value,
+    validate_phone_value,
+)
 
 
 class LoginRequest(BaseModel):
@@ -13,6 +20,11 @@ class RegisterRequest(BaseModel):
     email: str = Field(..., max_length=200)
     password: str = Field(..., min_length=6)
     role: str = Field(default='viewer')
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return validate_email_value(value)
 
 
 class StudentRegisterRequest(BaseModel):
@@ -31,6 +43,29 @@ class StudentRegisterRequest(BaseModel):
     work_schedule: Optional[str] = Field(None, max_length=100)
     lyceum_password: Optional[str] = Field(None, max_length=200)
 
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return validate_email_value(value)
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        return validate_phone_value(value)
+
+    @field_validator('cpf')
+    @classmethod
+    def validate_cpf(cls, value: str) -> str:
+        return validate_cpf_value(value)
+
+    @field_validator('registration_number')
+    @classmethod
+    def validate_registration_number(cls, value: str) -> str:
+        cleaned = str(value or '').strip()
+        if not cleaned:
+            raise ValueError('Informe a matricula.')
+        return cleaned
+
 
 class ProfessorRegisterRequest(BaseModel):
     registration_code: str = Field(..., min_length=5, max_length=5, description='Codigo de matricula de 5 digitos')
@@ -39,6 +74,39 @@ class ProfessorRegisterRequest(BaseModel):
     email: str = Field(..., max_length=200)
     phone: Optional[str] = Field(None, max_length=20)
     academic_course_names: List[str] = Field(default=[])
+
+    @field_validator('registration_code')
+    @classmethod
+    def validate_registration_code(cls, value: str) -> str:
+        digits = digits_only(value, 5) or ''
+        if len(digits) != 5:
+            raise ValueError('O codigo de matricula deve ter exatamente 5 digitos.')
+        return digits
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return validate_email_value(value)
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        return validate_phone_value(value)
+
+    @field_validator('academic_course_names')
+    @classmethod
+    def validate_course_names(cls, values: List[str]) -> List[str]:
+        cleaned = []
+        seen = set()
+        for value in values or []:
+            name = str(value or '').strip()
+            key = name.casefold()
+            if name and key not in seen:
+                cleaned.append(name)
+                seen.add(key)
+        if not cleaned:
+            raise ValueError('Selecione ao menos um curso academico.')
+        return cleaned
 
 
 class TokenResponse(BaseModel):

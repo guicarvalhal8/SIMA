@@ -3,20 +3,50 @@ Router CRUD de Disciplinas.
 """
 
 import unicodedata
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from app.database import get_db
 from app.models.course import Course
+from app.models.enrollment import Enrollment
+from app.models.student import Student
 from app.models.user import User
 from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse
 from app.security.auth import get_current_user
-from app.models.student import Student
-from app.models.enrollment import Enrollment
+from app.security.audit import audit_logger
 
 router = APIRouter(prefix="/api/courses", tags=["Disciplinas"])
 
+ACADEMIC_COURSE_FALLBACK = [
+    "Administracao",
+    "Agronomia",
+    "Analise e Desenvolvimento de Sistemas",
+    "Arquitetura e Urbanismo",
+    "Biomedicina",
+    "Ciencias Contabeis",
+    "Comunicacao Social: Publicidade e Propaganda",
+    "Design Grafico",
+    "Direito",
+    "Educacao Fisica",
+    "Enfermagem",
+    "Engenharia Civil",
+    "Engenharia de Software",
+    "Engenharia Eletrica",
+    "Engenharia Mecanica",
+    "Estetica e Cosmetica",
+    "Farmacia",
+    "Fisioterapia",
+    "Gastronomia",
+    "Inteligencia Artificial",
+    "Medicina",
+    "Medicina Veterinaria",
+    "Nutricao",
+    "Odontologia",
+    "Psicologia",
+    "Relacoes Internacionais",
+]
 
 CATALOG_FALLBACK_RULES = [
     {
@@ -26,7 +56,7 @@ CATALOG_FALLBACK_RULES = [
             "engenharia de software",
             "design grafico",
         },
-        "departments": {"Computação", "Matemática"},
+        "departments": {"Computacao", "Matematica"},
         "keywords": {"programacao", "banco", "software", "inteligencia", "algorit", "estatistica"},
     },
     {
@@ -36,7 +66,7 @@ CATALOG_FALLBACK_RULES = [
             "engenharia mecanica",
             "arquitetura e urbanismo",
         },
-        "departments": {"Física", "Matemática", "Computação"},
+        "departments": {"Fisica", "Matematica", "Computacao"},
         "keywords": {"calculo", "fisica", "algebra", "estatistica", "redes"},
     },
 ]
@@ -45,6 +75,16 @@ CATALOG_FALLBACK_RULES = [
 def normalize_text(value: Optional[str]) -> str:
     normalized = unicodedata.normalize("NFKD", str(value or ""))
     return "".join(char for char in normalized if not unicodedata.combining(char)).lower().strip()
+
+
+def unique_texts(values: list[str]) -> list[str]:
+    unique_values: dict[str, str] = {}
+    for value in values:
+        cleaned = str(value or "").strip()
+        normalized = normalize_text(cleaned)
+        if cleaned and normalized not in unique_values:
+            unique_values[normalized] = cleaned
+    return sorted(unique_values.values(), key=lambda item: item.lower())
 
 
 def serialize_course(course: Course) -> dict:
@@ -57,7 +97,7 @@ def serialize_course(course: Course) -> dict:
 
 
 def infer_catalog_courses(db: Session, academic_names: list[str]) -> list[dict]:
-    """Usa o catálogo institucional como fallback quando não há vínculo explícito suficiente."""
+    """Usa o catalogo institucional como fallback quando nao ha vinculo explicito suficiente."""
     normalized_names = [normalize_text(name) for name in academic_names]
     inferred_departments = set()
     inferred_keywords = set()
@@ -76,7 +116,7 @@ def infer_catalog_courses(db: Session, academic_names: list[str]) -> list[dict]:
         course_code = normalize_text(course.code)
         score = 0
 
-        if course.department in inferred_departments:
+        if normalize_text(course.department) in {normalize_text(item) for item in inferred_departments}:
             score += 3
         if any(keyword in course_name or keyword in course_department or keyword in course_code for keyword in inferred_keywords):
             score += 2
@@ -96,49 +136,48 @@ def infer_catalog_courses(db: Session, academic_names: list[str]) -> list[dict]:
 def list_available_academic_courses(
     db: Session = Depends(get_db),
 ):
-    """Retorna a lista de nomes de cursos únicos presentes no banco de estudantes."""
-    courses = (
-        db.query(Student.course_name)
-        .filter(Student.course_name != None, Student.course_name != "")
-        .distinct()
-        .all()
-    )
-    return [c[0] for c in courses]
+    """Retorna a lista de cursos academicos unicos do banco, com fallback institucional."""
+    database_courses = [
+        value[0]
+        for value in (
+            db.query(Student.course_name)
+            .filter(Student.course_name.isnot(None), Student.course_name != "")
+            .distinct()
+            .all()
+        )
+        if value[0]
+    ]
+    return unique_texts([*database_courses, *ACADEMIC_COURSE_FALLBACK])
 
 
 @router.get("/by-academic-courses")
 def list_subjects_by_academic_courses(
-    names: str = Query(...), # Comma separated list of academic course names
+    names: str = Query(...),
     db: Session = Depends(get_db),
 ):
-    """Retorna disciplinas (matérias) ligadas aos cursos acadêmicos informados.
-    
-    Usa dados de scraping como fonte principal (scraped_grades, scraped_attendance, scraped_subjects).
-    Apenas disciplinas que possuem dados reais de alunos matriculados nos cursos acadêmicos
-    informados são retornadas.
-    """
+    """Retorna disciplinas ligadas aos cursos academicos informados."""
 
-    academic_names = [n.strip() for n in names.split(",") if n.strip()]
+    academic_names = unique_texts([name for name in names.split(",") if name.strip()])
     if not academic_names:
         return []
 
     result = []
     seen_ids = set()
     seen_names = set()
+    normalized_academic_names = {normalize_text(name) for name in academic_names}
 
-    # Buscar disciplinas a partir dos dados de scraping (fonte principal)
     from app.models.scraped_data import ScrapedSubject, ScrapedGrade, ScrapedAttendance
 
     scraped_names = set()
 
-    for ScrapedModel, col in [
+    for scraped_model, column in [
         (ScrapedSubject, ScrapedSubject.disciplina),
         (ScrapedGrade, ScrapedGrade.disciplina),
         (ScrapedAttendance, ScrapedAttendance.disciplina),
     ]:
         rows = (
-            db.query(col)
-            .join(Student, Student.id == ScrapedModel.student_id)
+            db.query(column)
+            .join(Student, Student.id == scraped_model.student_id)
             .filter(Student.course_name.in_(academic_names))
             .distinct()
             .all()
@@ -147,21 +186,30 @@ def list_subjects_by_academic_courses(
             if name:
                 scraped_names.add(name)
 
-    for disc_name in sorted(scraped_names):
-        if disc_name.upper() not in seen_names:
-            seen_names.add(disc_name.upper())
-            # Tentar encontrar na tabela courses por nome
-            existing = db.query(Course).filter(Course.name == disc_name).first()
-            if existing:
-                seen_ids.add(existing.id)
-                result.append(serialize_course(existing))
-            else:
-                result.append({
-                    "id": None,
-                    "name": disc_name,
-                    "code": "",
-                    "department": None,
-                })
+    catalog_courses = db.query(Course).all()
+    catalog_by_normalized_name = {
+        normalize_text(course.name): course
+        for course in catalog_courses
+        if course.name
+    }
+
+    for disc_name in sorted(scraped_names, key=lambda item: item.lower()):
+        normalized_disc_name = normalize_text(disc_name)
+        if normalized_disc_name in seen_names:
+            continue
+
+        seen_names.add(normalized_disc_name)
+        existing = catalog_by_normalized_name.get(normalized_disc_name)
+        if existing:
+            seen_ids.add(existing.id)
+            result.append(serialize_course(existing))
+        else:
+            result.append({
+                "id": None,
+                "name": disc_name.strip(),
+                "code": "",
+                "department": None,
+            })
 
     enrolled_courses = (
         db.query(Course)
@@ -172,16 +220,16 @@ def list_subjects_by_academic_courses(
         .all()
     )
     for course in enrolled_courses:
-        if course.id not in seen_ids:
+        normalized_name = normalize_text(course.name)
+        if course.id not in seen_ids and normalized_name not in seen_names:
             seen_ids.add(course.id)
+            seen_names.add(normalized_name)
             result.append(serialize_course(course))
 
     if not result:
         result.extend(infer_catalog_courses(db, academic_names))
 
-    # Ordenar por nome
-    result.sort(key=lambda x: x["name"])
-
+    result.sort(key=lambda item: normalize_text(item["name"]))
     return result
 
 
@@ -194,7 +242,7 @@ def list_courses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Lista disciplinas com paginação e filtros."""
+    """Lista disciplinas com paginacao e filtros."""
     query = db.query(Course)
     if department:
         query = query.filter(Course.department == department)
@@ -217,7 +265,7 @@ def get_course(
     """Retorna dados de uma disciplina."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
-        raise HTTPException(status_code=404, detail="Disciplina não encontrada")
+        raise HTTPException(status_code=404, detail="Disciplina nao encontrada")
     return course
 
 
@@ -229,7 +277,7 @@ def create_course(
 ):
     """Cria uma nova disciplina."""
     if db.query(Course).filter(Course.code == data.code).first():
-        raise HTTPException(status_code=400, detail="Código de disciplina já cadastrado")
+        raise HTTPException(status_code=400, detail="Codigo de disciplina ja cadastrado")
 
     course = Course(**data.model_dump())
     db.add(course)
@@ -249,7 +297,7 @@ def update_course(
     """Atualiza dados de uma disciplina."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
-        raise HTTPException(status_code=404, detail="Disciplina não encontrada")
+        raise HTTPException(status_code=404, detail="Disciplina nao encontrada")
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(course, field, value)
@@ -269,7 +317,7 @@ def delete_course(
     """Remove uma disciplina."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
-        raise HTTPException(status_code=404, detail="Disciplina não encontrada")
+        raise HTTPException(status_code=404, detail="Disciplina nao encontrada")
 
     db.delete(course)
     db.commit()
