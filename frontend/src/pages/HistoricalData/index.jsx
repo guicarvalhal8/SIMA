@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     AlertCircle,
@@ -54,7 +54,6 @@ export function HistoricalData() {
     const [selectedStudentId, setSelectedStudentId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [showAttentionOnly, setShowAttentionOnly] = useState(false);
-    const fileInputRef = useRef(null);
 
     useEffect(() => {
         fetchData();
@@ -84,9 +83,6 @@ export function HistoricalData() {
         }
     }
 
-    function openFilePicker() {
-        fileInputRef.current?.click();
-    }
 
     function handleFileSelect(event) {
         const file = event.target.files?.[0];
@@ -170,16 +166,18 @@ export function HistoricalData() {
                 icon={Upload}
                 actions={(
                     <div className="flex flex-wrap gap-3">
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            className="hidden"
-                            accept=".csv,.xlsx,.xls,.txt,.pdf"
-                            onChange={handleFileSelect}
-                        />
-                        <Button icon={FileSpreadsheet} onClick={openFilePicker}>
-                            {pendingFile ? 'Trocar arquivo' : 'Selecionar arquivo'}
-                        </Button>
+                        <div className="relative inline-flex overflow-hidden rounded-2xl">
+                            <Button icon={FileSpreadsheet}>
+                                {pendingFile ? 'Trocar arquivo' : 'Selecionar arquivo'}
+                            </Button>
+                            <input
+                                type="file"
+                                className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                                accept=".csv,.xlsx,.xls,.txt,.pdf"
+                                onChange={handleFileSelect}
+                                aria-label="Selecionar arquivo historico"
+                            />
+                        </div>
                         {pendingFile && (
                             <Button onClick={handleUpload} loading={uploading} icon={Upload}>
                                 Subir e organizar arquivo
@@ -236,17 +234,20 @@ export function HistoricalData() {
                     </div>
 
                     {!pendingFile && (
-                        <button
-                            type="button"
-                            onClick={openFilePicker}
-                            className="mt-5 flex w-full items-center justify-between rounded-[24px] border border-dashed border-accent-blue/25 bg-white/70 px-5 py-4 text-left transition hover:border-accent-blue/45 hover:bg-white"
-                        >
+                        <label className="relative mt-5 flex w-full cursor-pointer items-center justify-between overflow-hidden rounded-[24px] border border-dashed border-accent-blue/25 bg-white/70 px-5 py-4 text-left transition hover:border-accent-blue/45 hover:bg-white">
+                            <input
+                                type="file"
+                                className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                                accept=".csv,.xlsx,.xls,.txt,.pdf"
+                                onChange={handleFileSelect}
+                                aria-label="Selecionar planilha ou PDF para upload"
+                            />
                             <div>
                                 <p className="text-sm font-semibold text-text-primary">Clique para selecionar planilha ou PDF</p>
                                 <p className="mt-1 text-sm text-text-secondary">Aceita CSV, XLSX, XLS, TXT e PDF. A NEXORA tenta organizar dados fora de ordem antes da analise.</p>
                             </div>
                             <Badge variant="info">Upload docente</Badge>
-                        </button>
+                        </label>
                     )}
 
                     {pendingFile && (
@@ -267,9 +268,18 @@ export function HistoricalData() {
                                 <Button onClick={handleUpload} loading={uploading} icon={Upload}>
                                     Processar arquivo
                                 </Button>
-                                <Button variant="secondary" onClick={openFilePicker}>
-                                    Escolher outro
-                                </Button>
+                                <div className="relative inline-flex overflow-hidden rounded-2xl">
+                                    <Button variant="secondary">
+                                        Escolher outro
+                                    </Button>
+                                    <input
+                                        type="file"
+                                        className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                                        accept=".csv,.xlsx,.xls,.txt,.pdf"
+                                        onChange={handleFileSelect}
+                                        aria-label="Escolher outro arquivo historico"
+                                    />
+                                </div>
                                 <Button variant="secondary" onClick={() => setPendingFile(null)}>
                                     Cancelar
                                 </Button>
@@ -851,6 +861,7 @@ function normalizeText(value) {
         .toLowerCase()
         .trim();
 }
+
 
 
 
