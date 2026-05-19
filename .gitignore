@@ -182,3 +182,4 @@ pnpm-debug.log*
 downloads/
 temp/
 tmp/
+.nexora-runtime/
