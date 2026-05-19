@@ -20,6 +20,7 @@ from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse, S
 from app.security.auth import get_current_user
 from app.security.audit import audit_logger
 from app.services.analytics_service import AnalyticsService
+from app.utils.attendance import resolve_attendance_percentage
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ def get_my_attendance(
             "disciplina": a.disciplina,
             "total_faltas": a.total_faltas,
             "total_aulas": a.total_aulas,
-            "percentual_presenca": a.percentual_presenca,
+            "percentual_presenca": resolve_attendance_percentage(a.percentual_presenca, a.total_faltas, a.total_aulas),
         })
 
     return {
@@ -485,7 +486,7 @@ def get_student_detail(
             "disciplina": a.disciplina,
             "total_faltas": a.total_faltas,
             "total_aulas": a.total_aulas,
-            "percentual_presenca": a.percentual_presenca,
+            "percentual_presenca": resolve_attendance_percentage(a.percentual_presenca, a.total_faltas, a.total_aulas),
         }
         for a in scraped_att
     ]

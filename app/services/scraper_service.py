@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.utils.attendance import resolve_attendance_percentage
 from app.utils.subject_name import clean_subject_name, normalize_subject_key
 
 logger = logging.getLogger(__name__)
@@ -485,7 +486,7 @@ class LyceumScraperService:
                     disciplina=clean_subject_name(attendance.get("disciplina", "")),
                     total_faltas=attendance.get("total_faltas", 0),
                     total_aulas=attendance.get("total_aulas", 60),
-                    percentual_presenca=attendance.get("percentual_presenca", 100.0),
+                    percentual_presenca=resolve_attendance_percentage(attendance.get("percentual_presenca", 100.0), attendance.get("total_faltas", 0), attendance.get("total_aulas", 60)) or 100.0,
                 )
             )
         db.commit()
@@ -643,8 +644,14 @@ class LyceumScraperService:
 
     @staticmethod
     def _parse_float(text: str) -> float:
+        if text is None:
+            return 0.0
+        cleaned = ''.join(ch for ch in str(text).strip() if ch.isdigit() or ch in ',.-')
+        cleaned = cleaned.replace(',', '.')
+        if cleaned in {'', '-', '.', '-.'}:
+            return 0.0
         try:
-            return float(text.strip().replace(",", "."))
+            return float(cleaned)
         except (ValueError, AttributeError):
             return 0.0
 

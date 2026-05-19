@@ -19,6 +19,7 @@ from app.analytics.linear_algebra import LinearAlgebraEngine
 from app.analytics.predictor import DropoutPredictor, PerformancePredictor
 from app.analytics.recommender import AcademicRecommender
 from app.analytics.utils import _round
+from app.utils.attendance import resolve_attendance_percentage
 
 
 class AnalyticsService:
@@ -57,7 +58,11 @@ class AnalyticsService:
         return _round(weighted_sum / total_weight, 2)
 
     def _get_student_attendance_rate(self, student_id: int) -> float:
-        """Calcula taxa de presença (%) de um aluno."""
+        """Calcula taxa de presença (%) de um aluno, priorizando dados sincronizados do Lyceum."""
+        scraped_rate = self._get_scraped_attendance_rate(student_id)
+        if scraped_rate is not None:
+            return scraped_rate
+
         attendances = self.db.query(Attendance).filter(
             Attendance.student_id == student_id
         ).all()
@@ -151,16 +156,22 @@ class AnalyticsService:
         
         return False
 
-    def _get_scraped_attendance_rate(self, student_id: int) -> float:
+    def _get_scraped_attendance_rate(self, student_id: int) -> float | None:
         """Calcula taxa de presença média das disciplinas sincronizadas."""
         attendances = self.db.query(ScrapedAttendance).filter(
             ScrapedAttendance.student_id == student_id
         ).all()
         if not attendances:
-            return 100.0
-        
-        rates = [a.percentual_presenca for a in attendances]
-        return _round(sum(rates) / len(rates), 2)
+            return None
+
+        rates = [
+            resolve_attendance_percentage(a.percentual_presenca, a.total_faltas, a.total_aulas)
+            for a in attendances
+        ]
+        valid_rates = [rate for rate in rates if rate is not None]
+        if not valid_rates:
+            return None
+        return _round(sum(valid_rates) / len(valid_rates), 2)
 
     def _get_scraped_failures(self, student_id: int) -> int:
         """Conta disciplinas com situação de reprovação no Lyceum."""
