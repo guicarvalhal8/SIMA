@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.utils.subject_name import clean_subject_name, normalize_subject_key
+
 logger = logging.getLogger(__name__)
 
 
@@ -324,7 +326,7 @@ class LyceumScraperService:
                         label = label_el[0].text.strip().lower()
                         value = value_el[0].text.strip()
                         if "disciplina" in label:
-                            grade_info["disciplina"] = value
+                            grade_info["disciplina"] = clean_subject_name(value)
                         elif "media" in label:
                             grade_info["media"] = self._parse_float(value)
                         elif "situacao" in label:
@@ -367,7 +369,7 @@ class LyceumScraperService:
                 if not heading:
                     continue
 
-                disciplina = heading[0].text.strip()
+                disciplina = clean_subject_name(heading[0].text.strip())
                 if not disciplina or disciplina.upper() == "TOTAL":
                     continue
 
@@ -429,7 +431,7 @@ class LyceumScraperService:
                         label = label_el[0].text.strip().lower()
                         value = value_el[0].text.strip()
                         if "disciplina" in label:
-                            subj_info["disciplina"] = value
+                            subj_info["disciplina"] = clean_subject_name(value)
                         elif "situacao" in label:
                             subj_info["situacao"] = value
                         elif "periodo" in label:
@@ -461,7 +463,7 @@ class LyceumScraperService:
             db.add(
                 ScrapedGrade(
                     student_id=student_id,
-                    disciplina=grade.get("disciplina", ""),
+                    disciplina=clean_subject_name(grade.get("disciplina", "")),
                     va1=grade.get("va1", 0.0),
                     va2=grade.get("va2", 0.0),
                     va3=grade.get("va3", 0.0),
@@ -480,7 +482,7 @@ class LyceumScraperService:
             db.add(
                 ScrapedAttendance(
                     student_id=student_id,
-                    disciplina=attendance.get("disciplina", ""),
+                    disciplina=clean_subject_name(attendance.get("disciplina", "")),
                     total_faltas=attendance.get("total_faltas", 0),
                     total_aulas=attendance.get("total_aulas", 60),
                     percentual_presenca=attendance.get("percentual_presenca", 100.0),
@@ -498,11 +500,21 @@ class LyceumScraperService:
         department = student.course_name if student and student.course_name else "Geral"
 
         db.query(ScrapedSubject).filter(ScrapedSubject.student_id == student_id).delete()
+        catalog_courses = db.query(Course).all()
+        course_by_key = {
+            normalize_subject_key(course.name): course
+            for course in catalog_courses
+            if course.name and normalize_subject_key(course.name)
+        }
+        seen_subject_keys = set()
+
         for subject in subjects_data:
-            name = subject.get("disciplina", "").strip()
-            if not name:
+            name = clean_subject_name(subject.get("disciplina", ""))
+            subject_key = normalize_subject_key(name)
+            if not name or not subject_key or subject_key in seen_subject_keys:
                 continue
 
+            seen_subject_keys.add(subject_key)
             db.add(
                 ScrapedSubject(
                     student_id=student_id,
@@ -514,18 +526,23 @@ class LyceumScraperService:
                 )
             )
 
+            existing_course = course_by_key.get(subject_key)
+            if existing_course:
+                if existing_course.name != name:
+                    existing_course.name = name
+                continue
+
             name_hash = hashlib.md5(name.encode()).hexdigest()[:6].upper()
             code = f"SUBJ-{name_hash}"
-            if not db.query(Course).filter(Course.name == name).first():
-                db.add(
-                    Course(
-                        name=name,
-                        code=code,
-                        credits=4,
-                        semester="2026.1",
-                        department=department,
-                    )
-                )
+            new_course = Course(
+                name=name,
+                code=code,
+                credits=4,
+                semester="2026.1",
+                department=department,
+            )
+            db.add(new_course)
+            course_by_key[subject_key] = new_course
 
         db.commit()
 
@@ -539,7 +556,7 @@ class LyceumScraperService:
                     student_id=student_id,
                     dia_semana=item.get("dia_semana", 0),
                     dia_nome=item.get("dia_nome"),
-                    disciplina=item.get("disciplina", ""),
+                    disciplina=clean_subject_name(item.get("disciplina", "")),
                     horario_inicio=item.get("horario_inicio"),
                     horario_fim=item.get("horario_fim"),
                     local=item.get("local"),
@@ -640,3 +657,4 @@ class LyceumScraperService:
 
 
 scraper_service = LyceumScraperService()
+

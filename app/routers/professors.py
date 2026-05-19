@@ -12,10 +12,30 @@ from app.models.scraped_data import ScrapedAttendance, ScrapedGrade, ScrapedSubj
 from app.security.auth import get_current_user
 from app.security.rbac import require_role
 from app.security.audit import audit_logger
+from app.utils.subject_name import clean_subject_name, normalize_subject_key
 
 router = APIRouter(tags=["Professores"])
 
 ALLOWED_PROFESSOR_ROLES = (UserRole.PROFESSOR, UserRole.ADMIN)
+
+def _build_student_subject_key_map(db: Session, student_ids: list[int]) -> dict[int, set[str]]:
+    subject_map: dict[int, set[str]] = {}
+    if not student_ids:
+        return subject_map
+
+    for model, column in [
+        (ScrapedSubject, ScrapedSubject.disciplina),
+        (ScrapedGrade, ScrapedGrade.disciplina),
+        (ScrapedAttendance, ScrapedAttendance.disciplina),
+    ]:
+        rows = db.query(model.student_id, column).filter(model.student_id.in_(student_ids)).all()
+        for student_id, name in rows:
+            subject_key = normalize_subject_key(name)
+            if not subject_key:
+                continue
+            subject_map.setdefault(student_id, set()).add(subject_key)
+
+    return subject_map
 
 
 def _ensure_professor_like_access(current_user: User):
@@ -70,7 +90,7 @@ def _get_professor_subject_names(db: Session, student_ids: list[int]) -> list[st
     if not student_ids:
         return []
 
-    subject_names = set()
+    subject_names_by_key: dict[str, str] = {}
     for model, column in [
         (ScrapedSubject, ScrapedSubject.disciplina),
         (ScrapedGrade, ScrapedGrade.disciplina),
@@ -78,8 +98,10 @@ def _get_professor_subject_names(db: Session, student_ids: list[int]) -> list[st
     ]:
         rows = db.query(column).filter(model.student_id.in_(student_ids)).distinct().all()
         for (name,) in rows:
-            if name:
-                subject_names.add(str(name).strip())
+            cleaned_name = clean_subject_name(name)
+            subject_key = normalize_subject_key(cleaned_name)
+            if subject_key and subject_key not in subject_names_by_key:
+                subject_names_by_key[subject_key] = cleaned_name
 
     enrollment_rows = (
         db.query(Course.name)
@@ -89,10 +111,12 @@ def _get_professor_subject_names(db: Session, student_ids: list[int]) -> list[st
         .all()
     )
     for (name,) in enrollment_rows:
-        if name:
-            subject_names.add(str(name).strip())
+        cleaned_name = clean_subject_name(name)
+        subject_key = normalize_subject_key(cleaned_name)
+        if subject_key and subject_key not in subject_names_by_key:
+            subject_names_by_key[subject_key] = cleaned_name
 
-    return sorted(subject_names)
+    return sorted(subject_names_by_key.values())
 
 
 def _serialize_professor_courses(db: Session, professor: Professor | None, current_user: User) -> list[dict]:
@@ -101,14 +125,16 @@ def _serialize_professor_courses(db: Session, professor: Professor | None, curre
     if not subject_names:
         return []
 
+    catalog_courses = db.query(Course).all()
     existing_courses = {
-        course.name: course
-        for course in db.query(Course).filter(Course.name.in_(subject_names)).all()
+        normalize_subject_key(course.name): course
+        for course in catalog_courses
+        if course.name and normalize_subject_key(course.name)
     }
 
     payload = []
     for subject_name in subject_names:
-        course = existing_courses.get(subject_name)
+        course = existing_courses.get(normalize_subject_key(subject_name))
         payload.append({
             "id": course.id if course else None,
             "name": subject_name,
@@ -184,22 +210,21 @@ def get_my_students(
     student_ids = _get_professor_student_ids(db, professor, current_user)
     students = db.query(Student).filter(Student.id.in_(student_ids), Student.status == StudentStatus.ACTIVE).all() if student_ids else []
     subject_names = _get_professor_subject_names(db, student_ids)
+    student_subject_keys = _build_student_subject_key_map(db, student_ids)
+    catalog_courses = db.query(Course).all()
+    course_by_subject_key = {
+        normalize_subject_key(course.name): course
+        for course in catalog_courses
+        if course.name and normalize_subject_key(course.name)
+    }
 
     result = []
     for subject_name in subject_names:
-        matched_course = db.query(Course).filter(Course.name == subject_name).first()
+        subject_key = normalize_subject_key(subject_name)
+        matched_course = course_by_subject_key.get(subject_key)
         students_in_subject = []
         for student in students:
-            has_subject = db.query(ScrapedGrade.id).filter(
-                ScrapedGrade.student_id == student.id,
-                ScrapedGrade.disciplina == subject_name,
-            ).first() or db.query(ScrapedAttendance.id).filter(
-                ScrapedAttendance.student_id == student.id,
-                ScrapedAttendance.disciplina == subject_name,
-            ).first() or db.query(ScrapedSubject.id).filter(
-                ScrapedSubject.student_id == student.id,
-                ScrapedSubject.disciplina == subject_name,
-            ).first()
+            has_subject = subject_key in student_subject_keys.get(student.id, set())
 
             if not has_subject and matched_course:
                 has_subject = db.query(Enrollment.id).filter(
@@ -272,14 +297,15 @@ def get_my_overview(
 
     if course_id:
         course = db.query(Course).filter(Course.id == course_id).first()
-        if not course or course.name not in discipline_names:
+        cleaned_course_name = clean_subject_name(course.name) if course else None
+        if not course or cleaned_course_name not in discipline_names:
             raise HTTPException(status_code=404, detail="Disciplina nao encontrada no seu perfil")
-        discipline_names = [course.name]
+        discipline_names = [cleaned_course_name]
+        subject_key = normalize_subject_key(cleaned_course_name)
+        student_subject_keys = _build_student_subject_key_map(db, student_ids)
         student_ids = [
             sid for sid in student_ids
-            if db.query(ScrapedGrade.id).filter(ScrapedGrade.student_id == sid, ScrapedGrade.disciplina == course.name).first()
-            or db.query(ScrapedAttendance.id).filter(ScrapedAttendance.student_id == sid, ScrapedAttendance.disciplina == course.name).first()
-            or db.query(ScrapedSubject.id).filter(ScrapedSubject.student_id == sid, ScrapedSubject.disciplina == course.name).first()
+            if subject_key in student_subject_keys.get(sid, set())
         ]
 
     if not student_ids and current_user.role == UserRole.ADMIN:
@@ -366,3 +392,4 @@ def list_available_courses(
         return []
 
     return _serialize_professor_courses(db, professor, current_user)
+

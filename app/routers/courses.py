@@ -16,6 +16,7 @@ from app.models.user import User
 from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse
 from app.security.auth import get_current_user
 from app.security.audit import audit_logger
+from app.utils.subject_name import clean_subject_name, normalize_subject_key
 
 router = APIRouter(prefix="/api/courses", tags=["Disciplinas"])
 
@@ -184,17 +185,19 @@ def list_subjects_by_academic_courses(
         )
         for (name,) in rows:
             if name:
-                scraped_names.add(name)
+                cleaned_name = clean_subject_name(name)
+                if cleaned_name:
+                    scraped_names.add(cleaned_name)
 
     catalog_courses = db.query(Course).all()
     catalog_by_normalized_name = {
-        normalize_text(course.name): course
+        normalize_subject_key(course.name): course
         for course in catalog_courses
         if course.name
     }
 
     for disc_name in sorted(scraped_names, key=lambda item: item.lower()):
-        normalized_disc_name = normalize_text(disc_name)
+        normalized_disc_name = normalize_subject_key(disc_name)
         if normalized_disc_name in seen_names:
             continue
 
@@ -322,3 +325,7 @@ def delete_course(
     db.delete(course)
     db.commit()
     audit_logger.log_data_change(current_user.username, "Course", "DELETE", course_id)
+
+
+
+
