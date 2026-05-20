@@ -4,7 +4,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.user import User, UserRole
-from app.models.professor import Professor, ProfessorAcademicCourse
+from app.models.professor import Professor, ProfessorAcademicCourse, ProfessorCourse
 from app.models.student import Student, StudentStatus
 from app.models.course import Course
 from app.models.enrollment import Enrollment
@@ -35,7 +35,147 @@ def _build_student_subject_key_map(db: Session, student_ids: list[int]) -> dict[
                 continue
             subject_map.setdefault(student_id, set()).add(subject_key)
 
+    enrollment_rows = (
+        db.query(Enrollment.student_id, Course.name)
+        .join(Course, Course.id == Enrollment.course_id)
+        .filter(Enrollment.student_id.in_(student_ids))
+        .all()
+    )
+    for student_id, name in enrollment_rows:
+        subject_key = normalize_subject_key(name)
+        if not subject_key:
+            continue
+        subject_map.setdefault(student_id, set()).add(subject_key)
+
     return subject_map
+
+
+def _build_student_subject_label_map(db: Session, student_ids: list[int]) -> dict[str, str]:
+    label_map: dict[str, str] = {}
+    if not student_ids:
+        return label_map
+
+    for model, column in [
+        (ScrapedSubject, ScrapedSubject.disciplina),
+        (ScrapedGrade, ScrapedGrade.disciplina),
+        (ScrapedAttendance, ScrapedAttendance.disciplina),
+    ]:
+        rows = db.query(column).filter(model.student_id.in_(student_ids)).distinct().all()
+        for (name,) in rows:
+            cleaned_name = clean_subject_name(name)
+            subject_key = normalize_subject_key(cleaned_name)
+            if subject_key and subject_key not in label_map:
+                label_map[subject_key] = cleaned_name
+
+    enrollment_rows = (
+        db.query(Course.name)
+        .join(Enrollment, Enrollment.course_id == Course.id)
+        .filter(Enrollment.student_id.in_(student_ids))
+        .distinct()
+        .all()
+    )
+    for (name,) in enrollment_rows:
+        cleaned_name = clean_subject_name(name)
+        subject_key = normalize_subject_key(cleaned_name)
+        if subject_key and subject_key not in label_map:
+            label_map[subject_key] = cleaned_name
+
+    return label_map
+
+
+def _get_selected_professor_course_ids(professor: Professor | None) -> set[int]:
+    return {
+        professor_course.course_id
+        for professor_course in (professor.professor_courses if professor else [])
+        if professor_course.course_id
+    }
+
+
+def _serialize_student_reference(student: Student) -> dict:
+    class_schedule = student.class_schedule.value if getattr(student.class_schedule, "value", None) else student.class_schedule
+    return {
+        "student_id": student.id,
+        "student_name": student.name,
+        "registration_number": student.registration_number,
+        "course_name": student.course_name,
+        "current_period": student.current_period,
+        "class_schedule": class_schedule,
+    }
+
+
+def _build_professor_course_catalog(
+    db: Session,
+    professor: Professor | None,
+    current_user: User,
+    *,
+    include_students: bool = False,
+) -> list[dict]:
+    academic_course_names = _get_professor_academic_courses(db, professor, current_user)
+    query = db.query(Student).filter(Student.status == StudentStatus.ACTIVE)
+
+    if academic_course_names:
+        query = query.filter(Student.course_name.in_(academic_course_names))
+    elif current_user.role != UserRole.ADMIN:
+        return []
+
+    students = query.order_by(Student.course_name.asc(), Student.name.asc()).all()
+    student_ids = [student.id for student in students]
+    if not student_ids:
+        return []
+
+    selected_course_ids = _get_selected_professor_course_ids(professor)
+    student_subject_keys = _build_student_subject_key_map(db, student_ids)
+    subject_label_map = _build_student_subject_label_map(db, student_ids)
+    catalog_courses = db.query(Course).all()
+    course_by_subject_key = {
+        normalize_subject_key(course.name): course
+        for course in catalog_courses
+        if course.name and normalize_subject_key(course.name)
+    }
+
+    grouped_entries: dict[str, dict[str, dict]] = {}
+
+    for student in students:
+        academic_course_name = student.course_name or "Sem curso academico"
+        academic_bucket = grouped_entries.setdefault(academic_course_name, {})
+
+        for subject_key in student_subject_keys.get(student.id, set()):
+            matched_course = course_by_subject_key.get(subject_key)
+            display_name = clean_subject_name(
+                matched_course.name if matched_course and matched_course.name else subject_label_map.get(subject_key) or subject_key
+            )
+
+            entry = academic_bucket.setdefault(subject_key, {
+                "academic_course_name": academic_course_name,
+                "id": matched_course.id if matched_course else None,
+                "name": display_name,
+                "code": matched_course.code if matched_course else "",
+                "department": matched_course.department if matched_course else None,
+                "selected": bool(matched_course and matched_course.id in selected_course_ids),
+                "selection_enabled": matched_course is not None,
+                "student_count": 0,
+                "periods": set(),
+                "students": [],
+            })
+
+            entry["student_count"] += 1
+            if student.current_period is not None:
+                entry["periods"].add(student.current_period)
+            if include_students:
+                entry["students"].append(_serialize_student_reference(student))
+
+    payload: list[dict] = []
+    for academic_course_name in sorted(grouped_entries.keys()):
+        subject_entries = list(grouped_entries[academic_course_name].values())
+        subject_entries.sort(key=lambda item: item["name"].lower())
+
+        for entry in subject_entries:
+            entry["periods"] = sorted(entry["periods"])
+            if not include_students:
+                entry.pop("students", None)
+            payload.append(entry)
+
+    return payload
 
 
 def _ensure_professor_like_access(current_user: User):
@@ -90,62 +230,18 @@ def _get_professor_subject_names(db: Session, student_ids: list[int]) -> list[st
     if not student_ids:
         return []
 
-    subject_names_by_key: dict[str, str] = {}
-    for model, column in [
-        (ScrapedSubject, ScrapedSubject.disciplina),
-        (ScrapedGrade, ScrapedGrade.disciplina),
-        (ScrapedAttendance, ScrapedAttendance.disciplina),
-    ]:
-        rows = db.query(column).filter(model.student_id.in_(student_ids)).distinct().all()
-        for (name,) in rows:
-            cleaned_name = clean_subject_name(name)
-            subject_key = normalize_subject_key(cleaned_name)
-            if subject_key and subject_key not in subject_names_by_key:
-                subject_names_by_key[subject_key] = cleaned_name
-
-    enrollment_rows = (
-        db.query(Course.name)
-        .join(Enrollment, Enrollment.course_id == Course.id)
-        .filter(Enrollment.student_id.in_(student_ids))
-        .distinct()
-        .all()
-    )
-    for (name,) in enrollment_rows:
-        cleaned_name = clean_subject_name(name)
-        subject_key = normalize_subject_key(cleaned_name)
-        if subject_key and subject_key not in subject_names_by_key:
-            subject_names_by_key[subject_key] = cleaned_name
-
-    return sorted(subject_names_by_key.values())
+    return sorted(_build_student_subject_label_map(db, student_ids).values())
 
 
 def _serialize_professor_courses(db: Session, professor: Professor | None, current_user: User) -> list[dict]:
-    student_ids = _get_professor_student_ids(db, professor, current_user)
-    subject_names = _get_professor_subject_names(db, student_ids)
-    if not subject_names:
-        return []
-
-    catalog_courses = db.query(Course).all()
-    existing_courses = {
-        normalize_subject_key(course.name): course
-        for course in catalog_courses
-        if course.name and normalize_subject_key(course.name)
-    }
-
-    payload = []
-    for subject_name in subject_names:
-        course = existing_courses.get(normalize_subject_key(subject_name))
-        payload.append({
-            "id": course.id if course else None,
-            "name": subject_name,
-            "code": course.code if course else "",
-        })
-    return payload
+    return _build_professor_course_catalog(db, professor, current_user, include_students=False)
 
 
 def _get_professor_course_records(db: Session, professor: Professor | None, current_user: User) -> list[Course]:
-    courses = _serialize_professor_courses(db, professor, current_user)
-    course_ids = [course["id"] for course in courses if course.get("id")]
+    course_ids = sorted(_get_selected_professor_course_ids(professor))
+    if not course_ids:
+        courses = _serialize_professor_courses(db, professor, current_user)
+        course_ids = [course["id"] for course in courses if course.get("id")]
     if course_ids:
         return db.query(Course).filter(Course.id.in_(course_ids)).order_by(Course.name.asc()).all()
 
@@ -173,6 +269,7 @@ def get_my_profile(
         "user_name": current_user.full_name,
         "user_email": current_user.email,
         "courses": _serialize_professor_courses(db, professor, current_user),
+        "selected_course_ids": sorted(_get_selected_professor_course_ids(professor)),
         "academic_courses": _get_professor_academic_courses(db, professor, current_user),
     }
 
@@ -207,58 +304,25 @@ def get_my_students(
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
-    student_ids = _get_professor_student_ids(db, professor, current_user)
-    students = db.query(Student).filter(Student.id.in_(student_ids), Student.status == StudentStatus.ACTIVE).all() if student_ids else []
-    subject_names = _get_professor_subject_names(db, student_ids)
-    student_subject_keys = _build_student_subject_key_map(db, student_ids)
-    catalog_courses = db.query(Course).all()
-    course_by_subject_key = {
-        normalize_subject_key(course.name): course
-        for course in catalog_courses
-        if course.name and normalize_subject_key(course.name)
-    }
-
     result = []
-    for subject_name in subject_names:
-        subject_key = normalize_subject_key(subject_name)
-        matched_course = course_by_subject_key.get(subject_key)
-        students_in_subject = []
-        for student in students:
-            has_subject = subject_key in student_subject_keys.get(student.id, set())
-
-            if not has_subject and matched_course:
-                has_subject = db.query(Enrollment.id).filter(
-                    Enrollment.student_id == student.id,
-                    Enrollment.course_id == matched_course.id,
-                ).first()
-
-            if not has_subject:
-                continue
-
-            class_schedule = student.class_schedule.value if getattr(student.class_schedule, 'value', None) else student.class_schedule
-            students_in_subject.append({
-                "student_id": student.id,
-                "student_name": student.name,
-                "registration_number": student.registration_number,
-                "course_name": student.course_name,
-                "current_period": student.current_period,
-                "class_schedule": class_schedule,
-            })
-
-        if students_in_subject:
-            students_in_subject.sort(key=lambda item: item.get("current_period") or 0)
-            result.append({
-                "course_id": matched_course.id if matched_course else None,
-                "course_name": subject_name,
-                "course_code": matched_course.code if matched_course else "",
-                "students": students_in_subject,
-            })
+    for entry in _build_professor_course_catalog(db, professor, current_user, include_students=True):
+        result.append({
+            "academic_course_name": entry["academic_course_name"],
+            "course_id": entry["id"],
+            "course_name": entry["name"],
+            "course_code": entry["code"],
+            "student_count": entry["student_count"],
+            "periods": entry["periods"],
+            "selected": entry["selected"],
+            "students": entry["students"],
+        })
 
     return result
 
 
 @router.put("/api/professors/me/courses")
 def update_my_courses(
+    data: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.PROFESSOR, UserRole.ADMIN)),
 ):
@@ -266,9 +330,35 @@ def update_my_courses(
     if not professor:
         raise HTTPException(status_code=404, detail="Perfil de professor nao encontrado")
 
-    audit_logger.log_data_change(current_user.username, "ProfessorCourse", "AUTO_SYNC", professor.id)
+    selected_course_ids = []
+    for value in data.get("course_ids", []):
+        try:
+            course_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if course_id not in selected_course_ids:
+            selected_course_ids.append(course_id)
+
+    available_course_ids = {
+        course["id"]
+        for course in _serialize_professor_courses(db, professor, current_user)
+        if course.get("id")
+    }
+    invalid_ids = [course_id for course_id in selected_course_ids if course_id not in available_course_ids]
+    if invalid_ids:
+        raise HTTPException(status_code=400, detail="Uma ou mais disciplinas nao pertencem ao seu escopo atual.")
+
+    db.query(ProfessorCourse).filter(ProfessorCourse.professor_id == professor.id).delete(synchronize_session=False)
+    for course_id in selected_course_ids:
+        db.add(ProfessorCourse(professor_id=professor.id, course_id=course_id))
+
+    db.commit()
+    db.refresh(professor)
+
+    audit_logger.log_data_change(current_user.username, "ProfessorCourse", "UPDATE_SELECTION", professor.id)
     return {
-        "detail": "As disciplinas do professor agora sao vinculadas automaticamente a partir dos alunos do mesmo curso com dados sincronizados.",
+        "detail": "Disciplinas do professor atualizadas com sucesso.",
+        "course_ids": selected_course_ids,
         "courses": _serialize_professor_courses(db, professor, current_user),
     }
 
