@@ -204,7 +204,7 @@ export function StudentDashboard() {
     const gpa = analytics?.kpis?.gpa ?? getAverage(grades?.grades, 'media');
     const attendanceRate = analytics?.kpis?.attendance_rate ?? getAverage(attendance?.attendance, 'percentual_presenca');
     const recommendations = analytics?.recommendations || [];
-    const flaggedAttendance = (attendance?.attendance || []).filter((item) => item.percentual_presenca < 85).slice(0, 4);
+    const flaggedAttendance = buildAttendanceAlerts(attendance?.attendance || []);
     const scheduleItems = useMemo(() => (
         schedule?.schedule || schedule?.subjects || schedule?.classes || schedule?.items || []
     ), [schedule]);
@@ -355,26 +355,29 @@ export function StudentDashboard() {
                     </Card>
 
                     <Card>
-                        <CardHeader title="Atenção a frequencia" subtitle="Disciplinas com presenca abaixo do ideal" icon={Calendar} />
+                        <CardHeader title="Atenção a frequencia" subtitle="Limite de 20 faltas por disciplina e 4 faltas por dia completo" icon={Calendar} />
                         <div className="space-y-3">
                             {flaggedAttendance.length > 0 ? flaggedAttendance.map((item) => (
                                 <div key={item.disciplina} className="rounded-[20px] border border-border-subtle bg-bg-secondary/45 p-4">
                                     <div className="flex items-center justify-between gap-3">
-                                        <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
-                                        <span className={`text-sm font-semibold ${item.percentual_presenca < 75 ? 'text-danger' : 'text-warning'}`}>
-                                            {item.percentual_presenca?.toFixed(0)}%
+                                        <div>
+                                            <p className="text-sm font-semibold text-text-primary">{item.disciplina}</p>
+                                            <p className="mt-1 text-sm text-text-secondary">{item.summary}</p>
+                                        </div>
+                                        <span className={`text-sm font-semibold ${item.toneClass}`}>
+                                            {item.label}
                                         </span>
                                     </div>
                                     <div className="mt-3 h-2 rounded-full bg-white">
                                         <div
-                                            className={`h-2 rounded-full ${item.percentual_presenca < 75 ? 'bg-danger' : 'bg-warning'}`}
-                                            style={{ width: `${Math.min(item.percentual_presenca || 0, 100)}%` }}
+                                            className={`h-2 rounded-full ${item.barClass}`}
+                                            style={{ width: `${Math.min(item.progress || 0, 100)}%` }}
                                         />
                                     </div>
                                 </div>
                             )) : (
                                 <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4 text-sm text-success">
-                                    Sua frequencia esta em um nivel confortavel nas disciplinas monitoradas.
+                                    Sua frequencia esta em margem segura nas disciplinas monitoradas.
                                 </div>
                             )}
                         </div>
@@ -575,6 +578,52 @@ function getRiskConfig(level) {
         default:
             return { label: 'Risco controlado', shortLabel: 'Controlado', wrapper: 'bg-success/10 text-success', badge: 'success', metricTone: 'emerald', icon: CheckCircle };
     }
+}
+
+const MAX_ABSENCES_PER_SUBJECT = 20;
+const ABSENCES_PER_FULL_DAY = 4;
+
+function buildAttendanceAlerts(items = []) {
+    return items
+        .map((item) => buildAttendanceAlert(item))
+        .filter(Boolean)
+        .sort((a, b) => b.absences - a.absences)
+        .slice(0, 4);
+}
+
+function buildAttendanceAlert(item) {
+    const absences = Number(item?.total_faltas ?? 0);
+    if (!Number.isFinite(absences) || absences < 8) {
+        return null;
+    }
+
+    const remainingAbsences = Math.max(0, MAX_ABSENCES_PER_SUBJECT - absences);
+    const remainingFullDays = Math.floor(remainingAbsences / ABSENCES_PER_FULL_DAY);
+    const progress = (absences / MAX_ABSENCES_PER_SUBJECT) * 100;
+
+    let toneClass = 'text-warning';
+    let barClass = 'bg-warning';
+    if (absences >= 16) {
+        toneClass = 'text-danger';
+        barClass = 'bg-danger';
+    }
+
+    const label = `${absences}/${MAX_ABSENCES_PER_SUBJECT} faltas`;
+    const summary = remainingAbsences === 0
+        ? 'Voce atingiu o limite de faltas da disciplina.'
+        : `${remainingAbsences} faltas restantes ate o limite, cerca de ${remainingFullDays} dia${remainingFullDays === 1 ? '' : 's'} completo${remainingFullDays === 1 ? '' : 's'} de margem.`;
+
+    return {
+        ...item,
+        absences,
+        remainingAbsences,
+        remainingFullDays,
+        progress,
+        label,
+        summary,
+        toneClass,
+        barClass,
+    };
 }
 
 function getAverage(items = [], key) {
