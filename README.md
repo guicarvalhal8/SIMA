@@ -1,154 +1,69 @@
 # NEXORA / SIMA
 
-Plataforma academica institucional para monitoramento, sincronizacao, analise historica e apoio a decisao para aluno, professor, coordenacao e pro-reitoria.
+Plataforma academica institucional para monitoramento, sincronizacao com portal academico, analise historica, predicao de risco e apoio a decisao para aluno, professor, coordenacao e pro-reitoria.
+
+## Visao geral
+
+O projeto e dividido em duas partes:
+
+- `app/`: backend FastAPI
+- `frontend/`: frontend React + Vite
+
+Principais capacidades:
+
+- autenticacao e autorizacao por papel
+- sincronizacao do aluno com o portal Lyceum
+- dashboards por perfil
+- upload e organizacao de planilhas historicas
+- central analitica com exportacao
+- leitura de risco academico com camada estatistica
 
 ## Stack
 
-- Backend: FastAPI, SQLAlchemy, SQLite, Selenium, scikit-learn, Gemini
-- Frontend: React, Vite, Tailwind, Framer Motion, Recharts
-- Migracoes: Alembic
+### Backend
 
-## Modulos principais
+- FastAPI
+- SQLAlchemy
+- SQLite
+- Alembic
+- Selenium
+- scikit-learn
+- pandas
+- reportlab
 
-- autenticacao e autorizacao por papel
-- sincronizacao do portal Lyceum
-- dashboard do aluno
-- dashboard e escopo docente
-- upload de planilhas historicas
-- central analitica
-- exportacao em PDF, CSV, XLSX e JSON
+### Frontend
 
-## Perfis
+- React
+- Vite
+- Tailwind CSS
+- Framer Motion
+- Recharts
+- Axios
+
+## Perfis do sistema
 
 - `student`
 - `professor`
 - `coordinator`
-- `admin` na API, exibido como `proreitor` no frontend
+- `admin`
 - `viewer`
 
-## Seguranca aplicada nesta versao
+No frontend, o papel `admin` aparece como `proreitor`.
 
-- `SECRET_KEY` removida do codigo-fonte e movida para ambiente
+## Seguranca atual
+
+Esta versao ja inclui:
+
+- `SECRET_KEY` fora do codigo-fonte
 - credenciais do Lyceum armazenadas criptografadas
-- bootstrap demo e criacao de admin padrao desativados por default
-- `CORS` configuravel por origem explicita
-- RBAC reforcado em alunos, cursos, notas e frequencia
-- autenticacao web com access cookie curto + refresh rotativo `HttpOnly`
-- upload historico com validacao de extensao, tamanho e limite de registros
-- base de migracoes com Alembic adicionada
+- RBAC reforcado nas rotas criticas
+- CORS por lista explicita de origens
+- upload historico com validacao de extensao, tamanho e volume
+- access cookie curto + refresh token rotativo `HttpOnly`
+- revogacao de sessao atual, logout global e revogacao por dispositivo
+- migracoes com Alembic
 
-## Configuracao
-
-Copie o exemplo:
-
-```powershell
-copy .env.example .env
-```
-
-Edite o `.env` e configure no minimo:
-
-```env
-SECRET_KEY=defina-um-segredo-forte
-GEMINI_API_KEY=sua_chave_se_for_usar_ia
-DATABASE_URL=sqlite:///./academico.db
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-REFRESH_TOKEN_EXPIRE_DAYS=7
-ACCESS_COOKIE_NAME=nexora_access
-REFRESH_COOKIE_NAME=nexora_refresh
-SESSION_COOKIE_SAMESITE=lax
-```
-
-Observacoes:
-
-- o frontend nao usa mais `localStorage` para guardar token de autenticacao
-- o login cria cookies `HttpOnly` separados de acesso e refresh
-- o frontend reidrata a sessao via `GET /api/auth/me` e renova acesso via `POST /api/auth/refresh`
-- o servidor permite revogacao por sessao, logout global e controle por dispositivo
-- em producao, habilite `SESSION_COOKIE_SECURE=true`
-
-## Migracoes
-
-O projeto agora usa Alembic como fluxo oficial.
-
-Criar uma revisao:
-
-```powershell
-alembic revision --autogenerate -m "descricao"
-```
-
-Aplicar migracoes:
-
-```powershell
-alembic upgrade head
-```
-
-Observacao:
-
-- `AUTO_CREATE_SCHEMA=false` e o padrao recomendado
-- em ambiente local antigo, so use `AUTO_CREATE_SCHEMA=true` de forma temporaria, quando souber exatamente o que esta fazendo
-
-## Executando o backend
-
-```powershell
-cd "C:\Users\guica\.gemini\antigravity\scratch\SIMA-mainn\SIMA-main"
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-```
-
-## Executando o frontend
-
-```powershell
-cd "C:\Users\guica\.gemini\antigravity\scratch\SIMA-mainn\SIMA-main\frontend"
-npm run dev
-```
-
-## URLs
-
-- Frontend: `http://localhost:5173`
-- Backend: `http://127.0.0.1:8000`
-- Swagger: `http://127.0.0.1:8000/docs`
-
-## Bootstrap demo
-
-O modo demo ficou desativado por padrao.
-
-So habilite se quiser subir um ambiente de demonstracao:
-
-```env
-ENABLE_DEMO_BOOTSTRAP=true
-SEED_EMPTY_DATABASE=true
-```
-
-Para criar um admin inicial automaticamente:
-
-```env
-CREATE_DEFAULT_ADMIN=true
-DEFAULT_ADMIN_PASSWORD=defina-uma-senha-forte
-```
-
-## Upload historico
-
-Restricoes atuais:
-
-- extensoes: `csv`, `xls`, `xlsx`, `txt`, `pdf`
-- tamanho maximo controlado por `MAX_UPLOAD_BYTES`
-- quantidade maxima de registros controlada por `MAX_HISTORICAL_RECORDS_PER_FILE`
-- fallback de IA controlado por `ENABLE_GEMINI_UPLOAD_FALLBACK`
-
-## Scraping Lyceum
-
-Comportamento atual:
-
-- usa Selenium
-- tenta senha explicita salva pelo aluno
-- fallback por CPF fica desativado por padrao
-
-Se quiser reabilitar o fallback por CPF em ambiente controlado:
-
-```env
-ALLOW_LYCEUM_CPF_PASSWORD_FALLBACK=true
-```
-
-## Estrutura
+## Estrutura do repositorio
 
 ```text
 app/
@@ -166,34 +81,184 @@ frontend/
 seed/
 tests/
 alembic/
+requirements.txt
+alembic.ini
+README.md
+DOCUMENTACAO_TECNICA.md
 ```
 
-## Documentacao tecnica completa
+## Pre-requisitos
 
-Leia:
+- Python 3.11+ com `venv`
+- Node.js 18+
+- npm
+
+Para scraping com Selenium:
+
+- Google Chrome ou Microsoft Edge instalado
+
+## Configuracao
+
+Copie o arquivo de exemplo:
+
+```powershell
+copy .env.example .env
+```
+
+Configure no minimo:
+
+```env
+SECRET_KEY=defina-um-segredo-forte
+DATABASE_URL=sqlite:///./academico.db
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+ACCESS_COOKIE_NAME=nexora_access
+REFRESH_COOKIE_NAME=nexora_refresh
+REFRESH_TOKEN_EXPIRE_DAYS=7
+SESSION_COOKIE_SAMESITE=lax
+```
+
+Configuracoes importantes:
+
+- `AUTO_CREATE_SCHEMA=false` e o padrao recomendado
+- `SESSION_COOKIE_SECURE=true` deve ser ligado em producao HTTPS
+- `ENABLE_DEMO_BOOTSTRAP=false` por padrao
+- `CREATE_DEFAULT_ADMIN=false` por padrao
+
+## Como rodar o sistema manualmente
+
+### 1. Entrar na pasta do projeto
+
+```powershell
+cd "C:\Users\guica\.gemini\antigravity\scratch\SIMA-mainn\SIMA-main"
+```
+
+### 2. Criar a virtualenv, se ainda nao existir
+
+```powershell
+py -m venv .venv
+```
+
+### 3. Instalar dependencias do backend, se necessario
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+### 4. Aplicar migracoes
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+```
+
+### 5. Subir o backend
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+### 6. Em outro terminal, entrar no frontend
+
+```powershell
+cd "C:\Users\guica\.gemini\antigravity\scratch\SIMA-mainn\SIMA-main\frontend"
+```
+
+### 7. Instalar dependencias do frontend, se necessario
+
+```powershell
+npm install
+```
+
+### 8. Subir o frontend
+
+```powershell
+npm run dev
+```
+
+## Enderecos
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://127.0.0.1:8000`
+- Swagger: `http://127.0.0.1:8000/docs`
+
+## Fluxo de autenticacao
+
+- o frontend nao guarda token de autenticacao em `localStorage`
+- o backend emite:
+  - access cookie curto
+  - refresh cookie `HttpOnly`
+- o frontend reidrata a sessao com `GET /api/auth/me`
+- quando recebe `401`, tenta uma renovacao automatica com `POST /api/auth/refresh`
+- o backend suporta:
+  - `POST /api/auth/logout`
+  - `POST /api/auth/logout-all`
+  - `GET /api/auth/sessions`
+  - `DELETE /api/auth/sessions/{session_identifier}`
+
+## Modo demo e bootstrap
+
+O modo demo nao sobe automaticamente.
+
+Se quiser ambiente demonstrativo:
+
+```env
+ENABLE_DEMO_BOOTSTRAP=true
+SEED_EMPTY_DATABASE=true
+```
+
+Se quiser criar admin inicial automaticamente:
+
+```env
+CREATE_DEFAULT_ADMIN=true
+DEFAULT_ADMIN_PASSWORD=defina-uma-senha-forte
+```
+
+## Upload historico
+
+Restricoes atuais:
+
+- extensoes aceitas: `csv`, `xls`, `xlsx`, `txt`, `pdf`
+- limite de tamanho por `MAX_UPLOAD_BYTES`
+- limite de registros por `MAX_HISTORICAL_RECORDS_PER_FILE`
+- fallback de IA controlado por `ENABLE_GEMINI_UPLOAD_FALLBACK`
+
+## Scraping Lyceum
+
+Comportamento atual:
+
+- usa Selenium
+- usa a senha explicita salva pelo aluno
+- fallback de senha por CPF fica desativado por padrao
+
+Para reabilitar o fallback em ambiente controlado:
+
+```env
+ALLOW_LYCEUM_CPF_PASSWORD_FALLBACK=true
+```
+
+## Testes
+
+Rodar os testes principais da API:
+
+```powershell
+cd "C:\Users\guica\.gemini\antigravity\scratch\SIMA-mainn\SIMA-main"
+.\.venv\Scripts\python.exe -m pytest tests\test_api.py -q
+```
+
+Build do frontend:
+
+```powershell
+cd "C:\Users\guica\.gemini\antigravity\scratch\SIMA-mainn\SIMA-main\frontend"
+npm run build
+```
+
+## Documentacao complementar
 
 - [DOCUMENTACAO_TECNICA.md](./DOCUMENTACAO_TECNICA.md)
-
-## Gerenciamento de sessao
-
-Endpoints novos de sessao:
-
-- `POST /api/auth/refresh`
-- `POST /api/auth/logout-all`
-- `GET /api/auth/sessions`
-- `DELETE /api/auth/sessions/{session_identifier}`
-
-Uso esperado:
-
-- access cookie expira rapido e pode ser renovado sem novo login enquanto o refresh estiver valido
-- cada login cria uma sessao persistida no servidor
-- o usuario pode revogar a sessao atual ou todas as sessoes
-- o backend limita a quantidade de sessoes simultaneas por usuario
 
 ## Proximos passos recomendados
 
 - migrar SQLite para PostgreSQL em ambiente compartilhado
-- adicionar painel visual de gerenciamento de sessoes para o usuario no frontend
-- incluir rate limit, lockout por tentativa e cabecalhos fortes de seguranca
-- ampliar testes automatizados com banco isolado
-- quebrar servicos e paginas monoliticas da analise historica
+- adicionar rate limit e lockout por tentativa de login
+- adicionar cabecalhos fortes de seguranca HTTP
+- criar painel visual de gerenciamento de sessoes no frontend
+- quebrar servicos e paginas muito grandes da area analitica
