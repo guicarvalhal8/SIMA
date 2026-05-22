@@ -12,7 +12,7 @@ Nesta revisão, o projeto recebeu correções estruturais importantes:
 - credenciais do Lyceum passaram a ser armazenadas criptografadas
 - RBAC foi reforçado nas rotas críticas de alunos, cursos, notas e frequência
 - CORS passou a ser configurável por origem explícita
-- autenticacao do frontend foi migrada de `localStorage` para cookie `HttpOnly`
+- autenticacao do frontend foi migrada para cookies `HttpOnly` com refresh token rotativo
 - upload histórico recebeu validação de extensão, tamanho e limite de registros
 - fluxo oficial de migração com Alembic foi introduzido
 
@@ -429,8 +429,7 @@ Arquivos centrais:
 ### O que falta ou está incompleto
 
 - RBAC não é aplicado de forma consistente nas rotas
-- autenticacao web ja usa cookie `HttpOnly`, mas ainda nao ha refresh token
-- não há refresh token
+- autenticacao web ja usa access cookie curto + refresh token rotativo
 - não há rotação de segredo
 - não há rate limit
 - não há lockout por tentativa
@@ -452,7 +451,11 @@ Endpoints:
 - `POST /api/auth/register/professor`
 - `POST /api/auth/register/coordinator`
 - `POST /api/auth/login`
+- `POST /api/auth/refresh`
 - `POST /api/auth/logout`
+- `POST /api/auth/logout-all`
+- `GET /api/auth/sessions`
+- `DELETE /api/auth/sessions/{session_identifier}`
 - `GET /api/auth/me`
 - `PATCH /api/auth/me`
 
@@ -460,7 +463,8 @@ Responsabilidades:
 
 - criação de usuários
 - criação de perfis especializados
-- autenticação e encerramento de sessão
+- autenticação, renovação e encerramento de sessão
+- inventário e revogação de sessões por dispositivo
 - atualização básica do perfil autenticado
 
 ### 10.2 Estudantes
@@ -752,10 +756,11 @@ Arquivos:
 Fluxo:
 
 1. faz `POST /api/auth/login`
-2. backend grava cookie `HttpOnly` de sessao
+2. backend grava access cookie curto e refresh cookie `HttpOnly`
 3. frontend chama `GET /api/auth/me`
 4. estado do usuario fica apenas em memoria no `AuthContext`
 5. chamadas Axios seguem com `withCredentials=true`
+6. em `401`, o frontend tenta `POST /api/auth/refresh` uma vez e reexecuta a chamada original
 
 ### 12.2 Layout e navegação
 
@@ -1002,7 +1007,7 @@ Estado geral de testes:
 - senha do Lyceum persistida em texto puro
 - `CORS` permissivo demais
 - endpoints críticos sem RBAC consistente
-- sessao web via cookie `HttpOnly` ja aplicada; faltam refresh/revogacao e sessao por dispositivo
+- sessao web com refresh/revogacao por dispositivo ja aplicada; faltam painel visual, rate limit e lockout
 - tentativa de múltiplas senhas derivadas de CPF no scraping
 
 ### Arquitetura

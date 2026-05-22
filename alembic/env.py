@@ -9,7 +9,7 @@ from app.config import settings
 from app.models.base import Base
 
 # Importa os modelos para registrar metadata no Alembic.
-from app.models import attendance, coordinator, course, enrollment, grade, historical_data, professor, scraped_data, staff_code, student, user  # noqa: F401
+from app.models import attendance, coordinator, course, enrollment, grade, historical_data, professor, scraped_data, staff_code, student, user, user_session  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional
 
@@ -115,6 +116,23 @@ class LoginResponse(BaseModel):
     role: str
     username: str
     expires_in_seconds: int
+
+
+class SessionInfoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    session_identifier: str
+    device_label: Optional[str] = None
+    device_id: Optional[str] = None
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+    refresh_expires_at: datetime
+    access_expires_at: datetime
+    last_seen_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
+    revoked_reason: Optional[str] = None
+    is_current: bool = False
 
 
 class UserResponse(BaseModel):

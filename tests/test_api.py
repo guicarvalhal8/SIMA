@@ -94,6 +94,34 @@ class TestAuth:
         assert resp.status_code == 200
         assert resp.json()["username"] == f"testadmin_{_uid}"
 
+    def test_refresh_rotates_session(self, auth_client):
+        resp = auth_client.post("/api/auth/refresh")
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["authenticated"] is True
+        assert payload["token_type"] == "session_cookie"
+
+    def test_list_sessions(self, auth_client):
+        resp = auth_client.get("/api/auth/sessions")
+        assert resp.status_code == 200
+        sessions = resp.json()
+        assert len(sessions) >= 1
+        assert sessions[0]["session_identifier"]
+
+    def test_revoke_named_session(self, auth_client):
+        sessions_resp = auth_client.get("/api/auth/sessions")
+        session_identifier = sessions_resp.json()[0]["session_identifier"]
+        revoke_resp = auth_client.delete(f"/api/auth/sessions/{session_identifier}")
+        assert revoke_resp.status_code == 204
+        after = auth_client.get("/api/auth/me")
+        assert after.status_code == 401
+
+    def test_logout_all_clears_session(self, auth_client):
+        resp = auth_client.post("/api/auth/logout-all")
+        assert resp.status_code == 204
+        after = auth_client.get("/api/auth/me")
+        assert after.status_code == 401
+
     def test_logout_clears_session(self, auth_client):
         resp = auth_client.post("/api/auth/logout")
         assert resp.status_code == 204

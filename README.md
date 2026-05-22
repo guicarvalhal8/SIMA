@@ -33,7 +33,7 @@ Plataforma academica institucional para monitoramento, sincronizacao, analise hi
 - bootstrap demo e criacao de admin padrao desativados por default
 - `CORS` configuravel por origem explicita
 - RBAC reforcado em alunos, cursos, notas e frequencia
-- autenticacao web migrada para cookie `HttpOnly` com sessao recuperada por `/api/auth/me`
+- autenticacao web com access cookie curto + refresh rotativo `HttpOnly`
 - upload historico com validacao de extensao, tamanho e limite de registros
 - base de migracoes com Alembic adicionada
 
@@ -52,14 +52,18 @@ SECRET_KEY=defina-um-segredo-forte
 GEMINI_API_KEY=sua_chave_se_for_usar_ia
 DATABASE_URL=sqlite:///./academico.db
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-SESSION_COOKIE_NAME=nexora_session
+REFRESH_TOKEN_EXPIRE_DAYS=7
+ACCESS_COOKIE_NAME=nexora_access
+REFRESH_COOKIE_NAME=nexora_refresh
 SESSION_COOKIE_SAMESITE=lax
 ```
 
 Observacoes:
 
 - o frontend nao usa mais `localStorage` para guardar token de autenticacao
-- o login cria um cookie `HttpOnly` e o estado da sessao e reidratado via `GET /api/auth/me`
+- o login cria cookies `HttpOnly` separados de acesso e refresh
+- o frontend reidrata a sessao via `GET /api/auth/me` e renova acesso via `POST /api/auth/refresh`
+- o servidor permite revogacao por sessao, logout global e controle por dispositivo
 - em producao, habilite `SESSION_COOKIE_SECURE=true`
 
 ## Migracoes
@@ -170,9 +174,26 @@ Leia:
 
 - [DOCUMENTACAO_TECNICA.md](./DOCUMENTACAO_TECNICA.md)
 
+## Gerenciamento de sessao
+
+Endpoints novos de sessao:
+
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout-all`
+- `GET /api/auth/sessions`
+- `DELETE /api/auth/sessions/{session_identifier}`
+
+Uso esperado:
+
+- access cookie expira rapido e pode ser renovado sem novo login enquanto o refresh estiver valido
+- cada login cria uma sessao persistida no servidor
+- o usuario pode revogar a sessao atual ou todas as sessoes
+- o backend limita a quantidade de sessoes simultaneas por usuario
+
 ## Proximos passos recomendados
 
 - migrar SQLite para PostgreSQL em ambiente compartilhado
-- evoluir de cookie de sessao simples para refresh session, revogacao e controle de sessao por dispositivo
+- adicionar painel visual de gerenciamento de sessoes para o usuario no frontend
+- incluir rate limit, lockout por tentativa e cabecalhos fortes de seguranca
 - ampliar testes automatizados com banco isolado
 - quebrar servicos e paginas monoliticas da analise historica

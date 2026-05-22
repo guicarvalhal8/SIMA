@@ -23,6 +23,7 @@ from app.models.attendance import Attendance, AttendanceStatus
 from app.models.user import User, UserRole
 from app.models.professor import Professor, ProfessorCourse, ProfessorAcademicCourse
 from app.models.coordinator import Coordinator
+from app.models.user_session import UserSession  # noqa: F401
 from app.models.staff_code import StaffRegistrationCode, StaffRole
 from app.models.scraped_data import (
     ScrapedAttendance,
@@ -78,6 +79,17 @@ DEMO_CREDENTIALS = {
         "role": UserRole.COORDINATOR,
     },
 }
+
+
+def ensure_security_tables_for_local_dev():
+    """
+    Garante tabelas de seguranca novas em desenvolvimento local.
+
+    Em producao, a criacao deve ocorrer por migracao Alembic.
+    """
+    if settings.is_production:
+        return
+    UserSession.__table__.create(bind=engine, checkfirst=True)
 
 
 def seed_staff_registration_codes(db):
@@ -551,6 +563,8 @@ async def lifespan(app: FastAPI):
     if settings.AUTO_CREATE_SCHEMA:
         Base.metadata.create_all(bind=engine)
         logger.warning("AUTO_CREATE_SCHEMA is enabled. Prefer Alembic migrations outside development.")
+    else:
+        ensure_security_tables_for_local_dev()
 
     db = SessionLocal()
     try:

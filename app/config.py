@@ -38,11 +38,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(64))
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     LYCEUM_CREDENTIALS_KEY: str = ""
-    SESSION_COOKIE_NAME: str = "nexora_session"
+    ACCESS_COOKIE_NAME: str = "nexora_access"
+    REFRESH_COOKIE_NAME: str = "nexora_refresh"
     SESSION_COOKIE_SECURE: bool = False
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_COOKIE_DOMAIN: str = ""
+    MAX_ACTIVE_SESSIONS_PER_USER: int = 5
 
     # Uploads
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024

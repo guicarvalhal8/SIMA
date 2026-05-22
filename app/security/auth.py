@@ -1,8 +1,5 @@
 """
-Modulo de autenticacao JWT e sessao por cookie HttpOnly.
-
-Permite autenticar via cookie de sessao para o frontend e, quando necessario,
-tambem aceita bearer token para integracoes controladas.
+Modulo de autenticacao JWT, cookie HttpOnly e validacao de sessao persistida.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -16,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.security.session import validate_access_session
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -35,7 +33,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -77,7 +75,7 @@ def get_request_token(
     if credentials and credentials.scheme.lower() == "bearer" and credentials.credentials:
         return credentials.credentials
 
-    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    session_token = request.cookies.get(settings.ACCESS_COOKIE_NAME)
     if session_token:
         return session_token
 
@@ -87,7 +85,7 @@ def get_request_token(
 def set_session_cookie(response: Response, token: str) -> None:
     """Grava o token JWT em cookie HttpOnly para sessao web."""
     response.set_cookie(
-        key=settings.SESSION_COOKIE_NAME,
+        key=settings.ACCESS_COOKIE_NAME,
         value=token,
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
@@ -98,16 +96,36 @@ def set_session_cookie(response: Response, token: str) -> None:
     )
 
 
-def clear_session_cookie(response: Response) -> None:
-    """Remove o cookie de sessao atual."""
-    response.delete_cookie(
-        key=settings.SESSION_COOKIE_NAME,
+def set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    """Grava o refresh token em cookie HttpOnly."""
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite=settings.SESSION_COOKIE_SAMESITE,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/",
         domain=settings.SESSION_COOKIE_DOMAIN or None,
-        samesite=settings.SESSION_COOKIE_SAMESITE,
-        secure=settings.SESSION_COOKIE_SECURE,
-        httponly=True,
     )
+
+
+def clear_session_cookies(response: Response) -> None:
+    """Remove os cookies de acesso e refresh da sessao atual."""
+    for cookie_name in (settings.ACCESS_COOKIE_NAME, settings.REFRESH_COOKIE_NAME):
+        response.delete_cookie(
+            key=cookie_name,
+            path="/",
+            domain=settings.SESSION_COOKIE_DOMAIN or None,
+            samesite=settings.SESSION_COOKIE_SAMESITE,
+            secure=settings.SESSION_COOKIE_SECURE,
+            httponly=True,
+        )
+
+
+def clear_session_cookie(response: Response) -> None:
+    """Compatibilidade com chamadores legados."""
+    clear_session_cookies(response)
 
 
 def get_current_user(
@@ -127,6 +145,13 @@ def get_current_user(
     """
     token = get_request_token(request, credentials)
     payload = verify_token(token)
+    if payload.get("type") != "access":
+        raise _authentication_exception()
+    validate_access_session(
+        db,
+        payload.get("sid"),
+        payload.get("jti"),
+    )
     username = payload.get("sub")
 
     user = db.query(User).filter(User.username == username).first()
