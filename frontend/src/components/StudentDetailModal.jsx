@@ -320,7 +320,7 @@ function OverviewTab({ student, kpis, history, recommendations }) {
 
 function GradesTab({ grades }) {
     if (!grades.length) {
-        return <EmptyPanel icon={Award} title="Nenhuma nota encontrada" description="As notas do aluno serao exibidas aqui apos a sincronizacao." />;
+        return <EmptyPanel icon={Award} title="Nenhuma nota encontrada" description="As notas do aluno serão exibidas aqui após a sincronização." />;
     }
 
     return (
@@ -336,7 +336,7 @@ function GradesTab({ grades }) {
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-sm font-semibold text-text-primary">{grade.disciplina}</p>
-                            <p className="mt-1 text-sm text-text-secondary">Avalia\u00e7\u00e3o consolidada da disciplina</p>
+                            <p className="mt-1 text-sm text-text-secondary">Avaliação consolidada da disciplina</p>
                         </div>
                         <Badge variant={grade.situacao === 'Aprovado' ? 'success' : grade.situacao === 'Reprovado' ? 'danger' : 'warning'}>
                             {grade.situacao || 'Em andamento'}
@@ -368,12 +368,12 @@ function formatAttendanceSummary(item) {
         return `${totalClasses} aulas registradas no portal`;
     }
 
-    return 'Presen\u00e7a sincronizada do portal acad\u00e9mico';
+    return 'Presença sincronizada do portal acadêmico';
 }
 
 function AttendanceTab({ attendance }) {
     if (!attendance.length) {
-        return <EmptyPanel icon={Clock} title="Nenhuma frequencia encontrada" description="Os dados de frequencia serao exibidos aqui apos a sincronizacao." />;
+        return <EmptyPanel icon={Clock} title="Nenhuma frequência encontrada" description="Os dados de frequência serão exibidos aqui após a sincronização." />;
     }
 
     return (
