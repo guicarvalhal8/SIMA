@@ -650,24 +650,11 @@ def _sync_historical_to_main_db(db: Session, records_data: list[dict[str, Any]],
             db.flush()
             courses_cache[ckey] = course
             
-    # 5. Associar disciplinas e cursos acadêmicos ao professor logado
-    for record in records_data:
-        subject = (record.get("subject") or "").strip()
-        semester = (record.get("semester") or "Desconhecido").strip()
-        course_name = (record.get("course_name") or "").strip()
-        if not subject:
-            continue
-            
-        course = courses_cache.get((subject.upper(), semester))
-        if course and course.id not in existing_prof_courses:
-            pc = ProfessorCourse(professor_id=professor.id, course_id=course.id)
-            db.add(pc)
-            existing_prof_courses.add(course.id)
-            
-        if course_name and course_name.upper() not in existing_prof_academic:
-            pa = ProfessorAcademicCourse(professor_id=professor.id, course_name=course_name)
-            db.add(pa)
-            existing_prof_academic.add(course_name.upper())
+    # 5. Associar disciplinas e cursos acadêmicos ao professor logado (REMOVIDO para evitar poluição do perfil ativo)
+    # Anteriormente o histórico associava automaticamente as disciplinas ao professor ativo.
+    # Agora isso é controlado apenas via perfil/seleção manual de disciplinas reais.
+    pass
+
             
     db.flush()
             

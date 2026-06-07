@@ -37,10 +37,11 @@ router = APIRouter(prefix="/api/students", tags=["Alunos"])
 
 @router.get("/me", response_model=StudentResponse)
 def get_my_profile(
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna dados do aluno logado."""
+    """Retorna dados do aluno logado e inicia sincronização automática em background."""
     if current_user.role != UserRole.STUDENT:
         raise HTTPException(status_code=403, detail="Acesso restrito a alunos")
 
@@ -49,6 +50,43 @@ def get_my_profile(
         raise HTTPException(status_code=404, detail="Perfil de aluno não encontrado")
     if not can_user_access_student(db, current_user, student):
         raise HTTPException(status_code=403, detail="Voce nao tem acesso a este aluno")
+
+    # Disparar sincronização em background automática na entrada/login do aluno
+    # apenas se ele tiver credenciais salvas e não estiver sincronizando atualmente.
+    # Adicionamos uma verificação de throttling para não sincronizar mais de uma vez a cada 5 minutos.
+    if (
+        student.sync_status != "syncing"
+        and student.cpf
+        and student.registration_number
+        and student.lyceum_password
+    ):
+        should_sync = False
+        if not student.last_sync_at:
+            should_sync = True
+        else:
+            time_diff = datetime.utcnow() - student.last_sync_at
+            if time_diff.total_seconds() > 300:  # 5 minutos
+                should_sync = True
+
+        if should_sync:
+            try:
+                custom_password = decrypt_secret(student.lyceum_password)
+                # Marcar como syncing no banco imediatamente
+                student.sync_status = "syncing"
+                student.sync_error = None
+                db.commit()
+
+                background_tasks.add_task(
+                    _run_sync_background,
+                    student.id,
+                    student.registration_number,
+                    student.cpf,
+                    custom_password,
+                )
+                logger.info(f"🔄 Sincronização automática em background disparada para o aluno {student.name} (ID: {student.id})")
+            except Exception as e:
+                logger.error(f"Erro ao disparar sincronização automática para o aluno {student.name}: {e}")
+
     return student
 
 

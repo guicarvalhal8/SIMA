@@ -106,16 +106,19 @@ export function ProfessorCourses() {
     }, []);
 
     const academicCourseOptions = useMemo(() => {
-        return (profile?.academic_courses || []).map((name) => {
-            const subjectsForCourse = (profile?.courses || []).filter((course) => course.academic_course_name === name);
-            const selectedForCourse = subjectsForCourse.filter((course) => selectedCourseIds.includes(course.id));
-            const studentsForCourse = selectedForCourse.reduce((sum, course) => sum + (course.student_count || 0), 0);
-            return {
-                name,
-                selectedSubjects: selectedForCourse.length,
-                students: studentsForCourse,
-            };
-        });
+        return (profile?.academic_courses || [])
+            .map((name) => {
+                const subjectsForCourse = (profile?.courses || []).filter((course) => course.academic_course_name === name);
+                const selectedForCourse = subjectsForCourse.filter((course) => selectedCourseIds.includes(course.id));
+                const studentsForCourse = selectedForCourse.reduce((sum, course) => sum + (course.student_count || 0), 0);
+                return {
+                    name,
+                    selectedSubjects: selectedForCourse.length,
+                    students: studentsForCourse,
+                    totalSubjects: subjectsForCourse.length,
+                };
+            })
+            .filter((course) => course.totalSubjects > 0);
     }, [profile, selectedCourseIds]);
 
     useEffect(() => {
