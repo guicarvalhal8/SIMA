@@ -207,7 +207,7 @@ class HistoricalAnalysisService:
             if spreadsheet_id is None:
                 professor = self.db.query(Professor).filter(Professor.user_id == current_user.id).first()
                 if professor:
-                    academic_courses = [ac.course_name.strip() for ac in professor.academic_courses if ac.course_name and _normalize_text(ac.course_name) != "engenharia de software"]
+                    academic_courses = [ac.course_name.strip() for ac in professor.academic_courses if ac.course_name]
                     if academic_courses:
                         query = query.filter(or_(*[HistoricalRecord.course_name.ilike(f"%{course}%") for course in academic_courses]))
         elif current_user.role == UserRole.COORDINATOR:
@@ -270,6 +270,11 @@ class HistoricalAnalysisService:
                         scoped = []
                 else:
                     scoped = []
+                
+                # Fallback de segurança: se o filtro estrito de disciplinas resultar vazio,
+                # permitimos que o professor veja todos os registros que ele mesmo subiu.
+                if not scoped and all_records:
+                    scoped = all_records
             else:
                 scoped = all_records
             professor_scope = self._get_professor_scope(current_user)
@@ -336,7 +341,7 @@ class HistoricalAnalysisService:
         academic_courses = [
             course_name.strip()
             for course_name in (ac.course_name for ac in professor.academic_courses)
-            if str(course_name or "").strip() and _normalize_text(course_name) != "engenharia de software"
+            if str(course_name or "").strip()
         ]
         academic_course_keys = {
             _normalize_text(name)

@@ -2561,13 +2561,13 @@ export function AnalysisCenter() {
             {!hasRecords ? (
                 <EmptyState
                     icon={Upload}
-                    title={workspace?.scope?.can_upload ? 'Nenhum arquivo hist\u00f3rico foi analisado ainda' : 'Ainda n\u00e3o h\u00e1 base hist\u00f3rica dispon\u00edvel para este recorte'}
+                    title={workspace?.scope?.can_upload ? 'Nenhum arquivo histórico foi analisado ainda' : 'Ainda não há base histórica disponível para este recorte'}
                     description={workspace?.scope?.can_upload
                         ? 'Envie um PDF ou planilha histórica para liberar as cinco analises acadêmicas do professor.'
-                        : 'Quando os professores enviarem bases hist\u00f3ricas, a coordenação poderá comparar turmas e priorizar intervenções.'}
+                        : 'Quando os professores enviarem bases históricas, a coordenação poderá comparar turmas e priorizar intervenções.'}
                     action={workspace?.scope?.can_upload ? (
                         <Link to={historyRoute}>
-                            <Button icon={Upload}>Ir para upload hist\u00f3rico</Button>
+                            <Button icon={Upload}>Ir para upload histórico</Button>
                         </Link>
                     ) : null}
                 />
