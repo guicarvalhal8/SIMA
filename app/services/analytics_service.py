@@ -4,7 +4,7 @@ e prepara os dados para os endpoints da API.
 """
 
 from typing import Dict, Any, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.models.student import Student, StudentStatus
@@ -77,7 +77,12 @@ class AnalyticsService:
                 self._scraped_grades_by_student[sg.student_id].append(sg)
 
         # 3. Carregar Attendance
-        all_attendances = self.db.query(Attendance).filter(Attendance.student_id.in_(student_ids)).all()
+        all_attendances = (
+            self.db.query(Attendance)
+            .options(joinedload(Attendance.course))
+            .filter(Attendance.student_id.in_(student_ids))
+            .all()
+        )
         for a in all_attendances:
             if a.student_id in self._attendances_by_student:
                 self._attendances_by_student[a.student_id].append(a)
@@ -134,17 +139,33 @@ class AnalyticsService:
         if self._attendances_by_student is not None and student_id in self._attendances_by_student:
             attendances = self._attendances_by_student[student_id]
         else:
-            attendances = self.db.query(Attendance).filter(
-                Attendance.student_id == student_id
-            ).all()
+            attendances = (
+                self.db.query(Attendance)
+                .options(joinedload(Attendance.course))
+                .filter(Attendance.student_id == student_id)
+                .all()
+            )
 
         if not attendances:
             return 100.0
+
+        # Ignorar disciplinas online/EAD e metodologias no cálculo da média geral
+        ignored_keywords = ["on-line", "online", "ead", "metodologia", "trabalho científico", "trabalho cientifico", "trabalhocientifico"]
+        filtered_attendances = []
+        for a in attendances:
+            course_name = a.course.name if a.course else ""
+            if any(kw in course_name.lower() for kw in ignored_keywords):
+                continue
+            filtered_attendances.append(a)
+
+        if not filtered_attendances:
+            return 100.0
+
         present = sum(
-            1 for a in attendances
+            1 for a in filtered_attendances
             if a.status in (AttendanceStatus.PRESENT, AttendanceStatus.LATE, AttendanceStatus.JUSTIFIED)
         )
-        return _round(present / len(attendances) * 100, 2)
+        return _round(present / len(filtered_attendances) * 100, 2)
 
     def _get_student_failures(self, student_id: int) -> int:
         """Conta reprovações de um aluno, com fallback para o Lyceum."""
@@ -274,9 +295,21 @@ class AnalyticsService:
         if not attendances:
             return None
 
+        # Ignorar disciplinas online/EAD e metodologias no cálculo da média geral
+        ignored_keywords = ["on-line", "online", "ead", "metodologia", "trabalho científico", "trabalho cientifico", "trabalhocientifico"]
+        filtered_attendances = []
+        for a in attendances:
+            disc_name = a.disciplina or ""
+            if any(kw in disc_name.lower() for kw in ignored_keywords):
+                continue
+            filtered_attendances.append(a)
+
+        if not filtered_attendances:
+            return None
+
         rates = [
             resolve_attendance_percentage(a.percentual_presenca, a.total_faltas, a.total_aulas)
-            for a in attendances
+            for a in filtered_attendances
         ]
         valid_rates = [rate for rate in rates if rate is not None]
         if not valid_rates:
