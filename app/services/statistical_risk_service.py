@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import StandardScaler
 
 
@@ -75,7 +75,7 @@ class StatisticalRiskService:
 
         # Amostragem inteligente (downsampling) para o treinamento se o volume for muito grande
         # Evita lentidão/timeout na requisição HTTP mantendo consistência estatística
-        MAX_TRAIN_SAMPLES = 5000
+        MAX_TRAIN_SAMPLES = 1000
         is_sampled = len(frame) > MAX_TRAIN_SAMPLES
         
         if is_sampled:
@@ -341,32 +341,6 @@ class StatisticalRiskService:
         selected_columns: list[str],
         splitter: StratifiedKFold,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        lasso_cv = LogisticRegressionCV(
-            Cs=6,
-            cv=splitter,
-            penalty="l1",
-            solver="liblinear",
-            scoring="roc_auc",
-            class_weight="balanced",
-            max_iter=4000,
-            random_state=42,
-        )
-        ridge_cv = LogisticRegressionCV(
-            Cs=6,
-            cv=splitter,
-            penalty="l2",
-            solver="lbfgs",
-            scoring="roc_auc",
-            class_weight="balanced",
-            max_iter=4000,
-            random_state=42,
-        )
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            lasso_cv.fit(scaled_selected, target)
-            ridge_cv.fit(scaled_selected, target)
-
         estimators = [
             {
                 "id": "lasso_logit",
@@ -374,9 +348,9 @@ class StatisticalRiskService:
                 "estimator": LogisticRegression(
                     penalty="l1",
                     solver="liblinear",
-                    C=float(np.atleast_1d(lasso_cv.C_)[0]),
+                    C=1.0,
                     class_weight="balanced",
-                    max_iter=4000,
+                    max_iter=1000,
                     random_state=42,
                 ),
             },
@@ -386,9 +360,9 @@ class StatisticalRiskService:
                 "estimator": LogisticRegression(
                     penalty="l2",
                     solver="lbfgs",
-                    C=float(np.atleast_1d(ridge_cv.C_)[0]),
+                    C=1.0,
                     class_weight="balanced",
-                    max_iter=4000,
+                    max_iter=1000,
                     random_state=42,
                 ),
             },
@@ -396,7 +370,7 @@ class StatisticalRiskService:
                 "id": "random_forest",
                 "label": "Random Forest",
                 "estimator": RandomForestClassifier(
-                    n_estimators=140,
+                    n_estimators=40,
                     max_depth=6,
                     min_samples_leaf=2,
                     class_weight="balanced",
@@ -406,30 +380,53 @@ class StatisticalRiskService:
             {
                 "id": "gradient_boosting",
                 "label": "Gradient Boosting",
-                "estimator": GradientBoostingClassifier(random_state=42),
+                "estimator": GradientBoostingClassifier(
+                    n_estimators=30,
+                    max_depth=4,
+                    random_state=42,
+                ),
             },
         ]
 
         successful_models: list[dict[str, Any]] = []
         diagnostics: list[dict[str, Any]] = []
 
+        # Faz um split estratificado 80/20 rápido apenas para calcular métricas de validação/diagnóstico.
+        # Evita cross_val_predict lento com múltiplos fits na requisição web síncrona.
+        try:
+            X_train, X_val, y_train, y_val = train_test_split(
+                scaled_selected,
+                target,
+                test_size=0.20,
+                random_state=42,
+                stratify=target,
+            )
+        except Exception:
+            # Fallback caso os dados sejam insuficientes ou desbalanceados no split
+            X_train, X_val, y_train, y_val = scaled_selected, scaled_selected, target, target
+
         for candidate in estimators:
             estimator = candidate["estimator"]
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    cv_probabilities = cross_val_predict(
-                        estimator,
-                        scaled_selected,
-                        target,
-                        cv=splitter,
-                        method="predict_proba",
-                    )[:, 1]
+                    # Treina no subconjunto de treino para avaliação de desempenho
+                    estimator.fit(X_train, y_train)
+                    val_probabilities = estimator.predict_proba(X_val)[:, 1]
+                    
+                    # Treina o estimador final na base completa para uso nas predições
                     estimator.fit(scaled_selected, target)
-                predictions = (cv_probabilities >= 0.5).astype(int)
-                roc_auc = float(roc_auc_score(target, cv_probabilities))
-                f1 = float(f1_score(target, predictions, zero_division=0))
-                accuracy = float(accuracy_score(target, predictions))
+                    
+                val_predictions = (val_probabilities >= 0.5).astype(int)
+                
+                # Tratamento de exceção de classe única na validação para o cálculo de ROC AUC
+                if len(np.unique(y_val)) > 1:
+                    roc_auc = float(roc_auc_score(y_val, val_probabilities))
+                else:
+                    roc_auc = 0.5
+                    
+                f1 = float(f1_score(y_val, val_predictions, zero_division=0))
+                accuracy = float(accuracy_score(y_val, val_predictions))
             except Exception:
                 continue
 
