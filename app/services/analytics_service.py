@@ -283,6 +283,18 @@ class AnalyticsService:
         
         return False
 
+    def _get_student_risk(self, student_id: int, gpa: float, att: float) -> tuple[float, str]:
+        """Calcula a taxa de risco e nível de risco de evasão de forma unificada e consistente."""
+        if self._is_beginning_of_semester(student_id):
+            # No início do período, o risco é proporcional apenas à falta de frequência.
+            # Se a presença for 100%, o risco é 0. Se for baixa, o risco aumenta.
+            risk_score = max(0.0, min(1.0, 1 - att / 100))
+        else:
+            risk_score = max(0.0, min(1.0, (1 - gpa / 10) * 0.6 + (1 - att / 100) * 0.4))
+        
+        risk_level = self._classify_risk(risk_score)
+        return risk_score, risk_level
+
     def _get_scraped_attendance_rate(self, student_id: int) -> float | None:
         """Calcula taxa de presença média das disciplinas sincronizadas."""
         if self._scraped_attendances_by_student is not None and student_id in self._scraped_attendances_by_student:
@@ -351,16 +363,12 @@ class AnalyticsService:
         semesters = self._get_student_semesters(student_id)
         trend = self._get_grade_trend(student_id)
 
-        # Se início de período, não calcular risco com GPA 0
-        if beginning_of_semester:
-            risk_score = 0.0
-            risk_level = "low"
-            recommendations = []  # Sem recomendações alarmantes
-        else:
-            # Risco e Predições (heurístico ou via predictor se houver dados suficientes)
-            risk_score = max(0.0, min(1.0, (1 - gpa / 10) * 0.6 + (1 - att / 100) * 0.4))
-            risk_level = self._classify_risk(risk_score)
+        # Obter score e nível de risco de evasão
+        risk_score, risk_level = self._get_student_risk(student_id, gpa, att)
 
+        if beginning_of_semester and risk_level in ("low", "medium"):
+            recommendations = []  # Sem recomendações alarmantes de notas se o risco for baixo/médio
+        else:
             # Recomendações
             recommendations = self.recommender.analyze_student(
                 student_id=student_id,
@@ -468,22 +476,16 @@ class AnalyticsService:
 
         # Risk summary
         risk_summary = {"low": 0, "medium": 0, "high": 0, "critical": 0}
-        for gpa, att in zip(gpas, attendance_rates):
-            if gpa < 4.0 or att < 60.0:
-                risk_summary["critical"] += 1
-            elif gpa < 5.0 or att < 70.0:
-                risk_summary["high"] += 1
-            elif gpa < 6.0 or att < 80.0:
-                risk_summary["medium"] += 1
-            else:
-                risk_summary["low"] += 1
+        for sid, gpa, att in zip(active_ids, gpas, attendance_rates):
+            _, risk_level = self._get_student_risk(sid, gpa, att)
+            risk_summary[risk_level] += 1
 
         # Top at risk students
         student_risks = []
         for s in active_students_list:
             gpa = self._get_student_gpa(s.id)
             att = self._get_student_attendance_rate(s.id)
-            risk_score = max(0.0, min(1.0, (1 - gpa / 10) * 0.6 + (1 - att / 100) * 0.4))
+            risk_score, risk_level = self._get_student_risk(s.id, gpa, att)
             student_risks.append({
                 "student_id": s.id,
                 "student_name": s.name,
@@ -491,7 +493,7 @@ class AnalyticsService:
                 "gpa": gpa,
                 "attendance_rate": att,
                 "risk_score": _round(risk_score, 4),
-                "risk_level": self._classify_risk(risk_score),
+                "risk_level": risk_level,
             })
         student_risks.sort(key=lambda x: x["risk_score"], reverse=True)
 
@@ -685,8 +687,11 @@ class AnalyticsService:
 
             feat = [gpa, att, float(failures), float(semesters), trend]
             all_features.append(feat)
-            # Label heurístico: aluno com GPA < 4 ou frequência < 60% => 1 (risco)
-            label = 1 if (gpa < 4.0 or att < 60.0) else 0
+            # Label heurístico de treino:
+            if self._is_beginning_of_semester(s.id):
+                label = 1 if att < 70.0 else 0
+            else:
+                label = 1 if (gpa < 4.0 or att < 60.0) else 0
             all_labels.append(label)
             student_info.append({"id": s.id, "name": s.name})
 
@@ -700,19 +705,22 @@ class AnalyticsService:
         for i, pred in enumerate(predictions):
             if "error" in pred:
                 continue
+            sid = student_info[i]["id"]
+            risk_score, risk_level = self._get_student_risk(sid, all_features[i][0], all_features[i][1])
+            
             recs = self.recommender.analyze_student(
-                student_id=student_info[i]["id"],
+                student_id=sid,
                 student_name=student_info[i]["name"],
                 gpa=all_features[i][0],
                 attendance_rate=all_features[i][1],
                 failures=int(all_features[i][2]),
-                dropout_risk=pred["risk_score"],
+                dropout_risk=risk_score,
             )
             results.append({
-                "student_id": student_info[i]["id"],
+                "student_id": sid,
                 "student_name": student_info[i]["name"],
-                "risk_score": pred["risk_score"],
-                "risk_level": pred["risk_level"],
+                "risk_score": _round(risk_score, 4),
+                "risk_level": risk_level,
                 "recommendations": recs,
             })
 
@@ -751,7 +759,7 @@ class AnalyticsService:
         for s in students:
             gpa = self._get_student_gpa(s.id)
             att = self._get_student_attendance_rate(s.id)
-            risk_score = max(0.0, min(1.0, (1 - gpa / 10) * 0.6 + (1 - att / 100) * 0.4))
+            risk_score, _ = self._get_student_risk(s.id, gpa, att)
             students_data.append({
                 "student_id": s.id,
                 "student_name": s.name,
