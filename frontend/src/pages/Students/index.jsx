@@ -43,8 +43,8 @@ export function StudentsList() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Base academica de alunos"
-                subtitle="Busca, consulta e acompanhamento da base discente para leitura operacional e tomada de decisao."
+                title="Base acadêmica de alunos"
+                subtitle="Busca, consulta e acompanhamento da base discente para leitura operacional e tomada de decisão."
                 icon={Users}
                 actions={<Button icon={UserPlus} variant="secondary">Novo cadastro</Button>}
             />
@@ -53,10 +53,10 @@ export function StudentsList() {
                 <div className="flex flex-col gap-4 border-b border-border-subtle pb-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-sm font-semibold text-text-primary">Filtro de busca</p>
-                        <p className="mt-1 text-sm text-text-secondary">Pesquise por nome, e-mail ou numero de matricula.</p>
+                        <p className="mt-1 text-sm text-text-secondary">Pesquise por nome, e-mail ou número de matrícula.</p>
                     </div>
                     <Input
-                        placeholder="Buscar por nome ou matricula"
+                        placeholder="Buscar por nome ou matrícula"
                         icon={Search}
                         className="w-full max-w-xl"
                         value={search}

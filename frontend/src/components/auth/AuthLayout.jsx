@@ -10,15 +10,15 @@ import { Button } from '@/components/ui/Button';
 const DEFAULT_FEATURES = [
     {
         title: 'Leitura institucional',
-        description: 'Hierarquia visual clara para decisao academica.',
+        description: 'Hierarquia visual clara para decisão acadêmica.',
     },
     {
         title: 'Perfis integrados',
-        description: 'Experiencias adaptadas a cada papel do sistema.',
+        description: 'Experiências adaptadas a cada papel do sistema.',
     },
     {
-        title: 'Dados acionaveis',
-        description: 'Alertas, risco e recomendacoes em destaque.',
+        title: 'Dados acionáveis',
+        description: 'Alertas, risco e recomendações em destaque.',
     },
     {
         title: 'Identidade NEXORA',
@@ -29,15 +29,15 @@ const DEFAULT_FEATURES = [
 export function AuthLayout({
     children,
     eyebrow = 'Plataforma institucional',
-    title = 'Monitoramento academico com identidade unica da NEXORA.',
-    description = 'KPIs, alertas, predicoes e apoio a decisao para aluno, professor, coordenacao e pro-reitoria em um unico ambiente.',
+    title = 'Monitoramento acadêmico com identidade única da NEXORA.',
+    description = 'KPIs, alertas, predições e apoio à decisão para aluno, professor, coordenação e pró-reitoria em um único ambiente.',
     features = DEFAULT_FEATURES,
 }) {
     return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg-primary px-4 py-10">
             <AnimatedBackground variant="login" />
             <div className="relative z-10 w-full max-w-6xl">
-                <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+                <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
                     <div className="hidden lg:block">
                         <div className="brand-shell rounded-[32px] border border-white/70 p-10">
                             <span className="inline-flex rounded-full border border-accent-blue/15 bg-accent-blue/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-blue">
@@ -75,18 +75,10 @@ export function AuthCard({
     title,
     subtitle,
     icon: Icon,
-    tone = 'blue',
     children,
     footer,
     maxWidth = 'max-w-lg',
 }) {
-    const toneMap = {
-        blue: 'from-accent-blue to-accent-purple',
-        student: 'from-accent-blue to-accent-cyan',
-        professor: 'from-accent-purple to-accent-rose',
-        coordinator: 'from-accent-amber to-accent-rose',
-    };
-
     return (
         <motion.div
             className={clsx('relative z-10 w-full px-4', maxWidth)}
@@ -106,11 +98,11 @@ export function AuthCard({
                         )}
                     </div>
                     <h1 className="mt-4 text-2xl font-bold gradient-text">{title}</h1>
-                    {subtitle && (
+                    {subtitle ? (
                         <p className="mt-2 text-sm text-text-secondary">
                             {subtitle}
                         </p>
-                    )}
+                    ) : null}
                 </div>
 
                 {children}
@@ -183,7 +175,7 @@ export function AuthSuccessState({
                     <h2 className="mt-6 text-2xl font-semibold text-text-primary">{title}</h2>
                     <p className="mt-3 text-sm leading-7 text-text-secondary">{description}</p>
                     <div className={clsx('mt-5 rounded-[20px] border p-4 text-sm font-medium', toneMap[status] || toneMap.success)}>
-                        {status === 'pending' ? 'Conta pendente de aprovacao institucional' : 'Cadastro concluido com sucesso'}
+                        {status === 'pending' ? 'Conta pendente de aprovação institucional' : 'Cadastro concluído com sucesso'}
                     </div>
                     <Button onClick={onAction} className="mt-8 w-full">
                         {actionLabel}
@@ -193,5 +185,3 @@ export function AuthSuccessState({
         </AuthLayout>
     );
 }
-
-

@@ -71,7 +71,7 @@ export function CoordinatorRegister() {
         setError('');
 
         if (!form.registration_code || form.registration_code.length !== 5) {
-            setError('O codigo de matricula deve ter exatamente 5 digitos.');
+            setError('O código de matrícula deve ter exatamente 5 dígitos.');
             return;
         }
         if (!form.password || form.password.length < 6) {
@@ -79,7 +79,7 @@ export function CoordinatorRegister() {
             return;
         }
         if (form.password !== form.confirmPassword) {
-            setError('As senhas nao coincidem.');
+            setError('As senhas não coincidem.');
             return;
         }
         if (!form.name || form.name.trim().length < 2) {
@@ -95,7 +95,7 @@ export function CoordinatorRegister() {
             return;
         }
         if (!form.academic_course_name) {
-            setError('Selecione o curso que voce coordena.');
+            setError('Selecione o curso que você coordena.');
             return;
         }
 
@@ -119,7 +119,7 @@ export function CoordinatorRegister() {
             setError(
                 message ||
                 (err.request
-                    ? 'Nao foi possivel conectar ao backend. Verifique se a API esta rodando em http://127.0.0.1:8000.'
+                    ? 'Não foi possível conectar ao backend. Verifique se a API está rodando em http://127.0.0.1:8000.'
                     : 'Erro ao cadastrar. Tente novamente.')
             );
         } finally {
@@ -131,7 +131,7 @@ export function CoordinatorRegister() {
         return (
             <AuthSuccessState
                 title="Cadastro de coordenador concluido"
-                description="Sua conta foi criada com o curso institucional vinculado para analises e gestao academica."
+                description="Sua conta foi criada com o curso institucional vinculado para análises e gestão acadêmica."
                 onAction={() => navigate('/login')}
             />
         );
@@ -145,7 +145,7 @@ export function CoordinatorRegister() {
         <AuthLayout>
             <AuthCard
                 title="Cadastro de Coordenador"
-                subtitle="Vincule sua conta ao curso institucional que voce coordena."
+                subtitle="Vincule sua conta ao curso institucional que você coordena."
                 icon={Shield}
                 tone="coordinator"
             >
@@ -153,7 +153,7 @@ export function CoordinatorRegister() {
                     {error ? <AuthAlert>{error}</AuthAlert> : null}
 
                     <Input
-                        label="Codigo de matricula"
+                        label="Código de matrícula"
                         placeholder="Ex: 10001"
                         icon={Hash}
                         value={form.registration_code}
@@ -217,7 +217,7 @@ export function CoordinatorRegister() {
 
                     <div className="relative">
                         <label className="mb-2 block text-sm font-semibold text-text-secondary">
-                            Curso que voce coordena
+                            Curso que você coordena
                         </label>
 
                         {form.academic_course_name ? (
@@ -244,7 +244,7 @@ export function CoordinatorRegister() {
                             value={courseSearch}
                             onChange={(event) => setCourseSearch(event.target.value)}
                             onFocus={() => setShowCourseDropdown(true)}
-                            description="O curso escolhido define o escopo dos alunos, relatorios e indicadores da coordenacao."
+                            description="O curso escolhido define o escopo dos alunos, relatórios e indicadores da coordenação."
                         />
 
                         {showCourseDropdown ? (

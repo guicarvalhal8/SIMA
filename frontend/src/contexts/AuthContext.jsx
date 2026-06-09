@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
             return {
                 success: false,
                 message: detail || (error.request
-                    ? 'Nao foi possivel conectar ao backend. Verifique se a API esta rodando em http://127.0.0.1:8000.'
+                    ? 'Não foi possível conectar ao backend. Verifique se a API está rodando em http://127.0.0.1:8000.'
                     : 'Erro ao realizar login'),
             };
         }

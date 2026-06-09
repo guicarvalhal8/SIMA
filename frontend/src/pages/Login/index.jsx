@@ -46,8 +46,8 @@ export function Login() {
         return (
             <AuthSuccessState
                 status="pending"
-                title="Cadastro em aprovacao"
-                description="Sua solicitacao foi registrada e esta aguardando validacao administrativa para liberar o acesso."
+                title="Cadastro em aprovação"
+                description="Sua solicitação foi registrada e está aguardando validação administrativa para liberar o acesso."
                 actionLabel="Voltar para o login"
                 onAction={() => setPendingApproval(false)}
             />
@@ -58,14 +58,14 @@ export function Login() {
         <AuthLayout>
             <AuthCard
                 title="Entrar na NEXORA"
-                subtitle="Use sua matricula, codigo institucional ou e-mail para acessar a plataforma."
+                subtitle="Use sua matrícula, código institucional ou e-mail para acessar a plataforma."
                 maxWidth="max-w-md"
             >
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {error ? <AuthAlert>{error}</AuthAlert> : null}
 
                     <Input
-                        label="E-mail, matricula ou codigo"
+                        label="E-mail, matrícula ou código"
                         placeholder="Digite seu identificador de acesso"
                         icon={User}
                         value={identifier}
@@ -90,7 +90,7 @@ export function Login() {
 
                 <div className="mt-7 text-center">
                     <p className="text-sm text-text-secondary">
-                        Nao tem conta?{' '}
+                        Não tem conta?{' '}
                         <button
                             type="button"
                             onClick={() => navigate('/register')}
@@ -102,7 +102,7 @@ export function Login() {
                 </div>
 
                 <p className="mt-5 text-center text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
-                    NEXORA | inteligencia analitica para decisoes academicas
+                    NEXORA | inteligência analítica para decisões acadêmicas
                 </p>
             </AuthCard>
         </AuthLayout>

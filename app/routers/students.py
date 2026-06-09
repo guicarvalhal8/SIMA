@@ -21,12 +21,13 @@ from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.models.course import Course
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse, StudentListResponse
 from app.security.auth import get_current_user
-from app.security.access import can_user_access_student, scope_students_query
+from app.security.access import can_user_access_student, get_user_allowed_subject_keys, scope_students_query
 from app.security.audit import audit_logger
 from app.security.rbac import require_coordinator_or_above
 from app.security.secrets import decrypt_secret, encrypt_secret
 from app.services.analytics_service import AnalyticsService
 from app.utils.attendance import normalize_attendance_records, resolve_attendance_percentage, resolve_total_classes
+from app.utils.subject_name import normalize_subject_key
 
 logger = logging.getLogger(__name__)
 
@@ -495,8 +496,20 @@ def get_student_detail(
     if not can_user_access_student(db, current_user, student):
         raise HTTPException(status_code=403, detail="Voce nao tem acesso a este aluno")
 
+    allowed_subject_keys = get_user_allowed_subject_keys(db, current_user)
+
+    def subject_is_visible(name: str | None) -> bool:
+        if allowed_subject_keys is None:
+            return True
+        subject_key = normalize_subject_key(name)
+        return bool(subject_key and subject_key in allowed_subject_keys)
+
     # Notas scraped
-    scraped_grades = db.query(ScrapedGrade).filter(ScrapedGrade.student_id == student.id).all()
+    scraped_grades = [
+        grade
+        for grade in db.query(ScrapedGrade).filter(ScrapedGrade.student_id == student.id).all()
+        if subject_is_visible(grade.disciplina)
+    ]
     grades = [
         {
             "disciplina": g.disciplina,
@@ -548,7 +561,11 @@ def get_student_detail(
         grades = list(grades_by_course.values())
 
     # Frequência scraped
-    scraped_att = db.query(ScrapedAttendance).filter(ScrapedAttendance.student_id == student.id).all()
+    scraped_att = [
+        attendance_record
+        for attendance_record in db.query(ScrapedAttendance).filter(ScrapedAttendance.student_id == student.id).all()
+        if subject_is_visible(attendance_record.disciplina)
+    ]
     normalized_attendance = normalize_attendance_records(scraped_att)
     attendance = []
     for a, attendance_payload in zip(scraped_att, normalized_attendance):
@@ -587,7 +604,11 @@ def get_student_detail(
                 "faltas_confirmadas": [],
             })
 
-    scraped_subjects = db.query(ScrapedSubject).filter(ScrapedSubject.student_id == student.id).all()
+    scraped_subjects = [
+        subject
+        for subject in db.query(ScrapedSubject).filter(ScrapedSubject.student_id == student.id).all()
+        if subject_is_visible(subject.disciplina)
+    ]
     subjects = [
         {
             "disciplina": s.disciplina,
@@ -616,7 +637,11 @@ def get_student_detail(
                 "data_inicial": None,
             })
 
-    scraped_schedule = db.query(ScrapedSchedule).filter(ScrapedSchedule.student_id == student.id).all()
+    scraped_schedule = [
+        schedule_item
+        for schedule_item in db.query(ScrapedSchedule).filter(ScrapedSchedule.student_id == student.id).all()
+        if subject_is_visible(schedule_item.disciplina)
+    ]
     schedule = [
         {
             "dia_semana": s.dia_semana,
@@ -631,7 +656,37 @@ def get_student_detail(
     ]
     schedule.sort(key=lambda item: (item.get("dia_semana") or 99, item.get("horario_inicio") or ""))
 
-    analytics = AnalyticsService(db).get_student_overview(student.id)
+    analytics_service = AnalyticsService(db)
+    analytics = analytics_service.get_student_overview(student.id)
+    analytics_history = [
+        entry
+        for entry in (analytics.get("history") or [])
+        if subject_is_visible(entry.get("disciplina"))
+    ]
+
+    visible_grade_values = [float(grade.media) for grade in scraped_grades if grade.media is not None]
+    visible_attendance_values = [
+        float(item["percentual_presenca"])
+        for item in attendance
+        if item.get("percentual_presenca") is not None
+    ]
+    average_gpa = round(sum(visible_grade_values) / len(visible_grade_values), 2) if visible_grade_values else 0.0
+    average_attendance = round(sum(visible_attendance_values) / len(visible_attendance_values), 2) if visible_attendance_values else 0.0
+    failures = sum(1 for grade in grades if str(grade.get("situacao") or "").strip().lower() == "reprovado")
+    risk_score = max(0.0, min(1.0, (1 - average_gpa / 10) * 0.6 + (1 - average_attendance / 100) * 0.4))
+
+    filtered_analytics = {
+        **analytics,
+        "history": analytics_history,
+        "kpis": {
+            **(analytics.get("kpis") or {}),
+            "gpa": average_gpa,
+            "attendance_rate": average_attendance,
+            "failures": failures,
+            "risk_score": round(risk_score, 4),
+            "risk_level": analytics_service._classify_risk(risk_score),
+        },
+    }
 
     return {
         "student": {
@@ -653,7 +708,7 @@ def get_student_detail(
             "sync_status": student.sync_status,
             "last_sync_at": student.last_sync_at.isoformat() if student.last_sync_at else None,
         },
-        "analytics": analytics,
+        "analytics": filtered_analytics,
         "grades": grades,
         "attendance": attendance,
         "subjects": subjects,

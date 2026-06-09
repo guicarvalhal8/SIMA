@@ -24,7 +24,7 @@ import { digitsOnly, isValidCpf, isValidEmail, isValidPhone } from '@/lib/formVa
 const STEPS = [
     { title: 'Dados pessoais', subtitle: 'Identificacao e contato institucional.' },
     { title: 'Acesso', subtitle: 'Senha de acesso ao sistema.' },
-    { title: 'Academico', subtitle: 'Curso, periodo e rotina do aluno.' },
+    { title: 'Acadêmico', subtitle: 'Curso, período e rotina do aluno.' },
 ];
 
 export function StudentRegister() {
@@ -71,12 +71,12 @@ export function StudentRegister() {
         }
         if (step === 1) {
             if (!form.password || form.password.length < 6) return 'A senha deve ter no minimo 6 caracteres.';
-            if (form.password !== form.confirmPassword) return 'As senhas nao coincidem.';
+            if (form.password !== form.confirmPassword) return 'As senhas não coincidem.';
         }
         if (step === 2) {
-            if (!form.registration_number) return 'Informe a matricula.';
-            if (!form.course_name) return 'Selecione o curso academico.';
-            if (!form.current_period) return 'Selecione o periodo atual.';
+            if (!form.registration_number) return 'Informe a matrícula.';
+            if (!form.course_name) return 'Selecione o curso acadêmico.';
+            if (!form.current_period) return 'Selecione o período atual.';
             if (!form.class_schedule) return 'Selecione o turno das aulas.';
         }
         return null;
@@ -133,7 +133,7 @@ export function StudentRegister() {
             setError(
                 message ||
                 (err.request
-                    ? 'Nao foi possivel conectar ao backend. Verifique se a API esta rodando em http://127.0.0.1:8000.'
+                    ? 'Não foi possível conectar ao backend. Verifique se a API está rodando em http://127.0.0.1:8000.'
                     : 'Erro ao cadastrar. Tente novamente.')
             );
         } finally {
@@ -155,7 +155,7 @@ export function StudentRegister() {
         <AuthLayout>
             <AuthCard
                 title="Cadastro de Aluno"
-                subtitle="Preencha seus dados para ativar o monitoramento academico individual na NEXORA."
+                subtitle="Preencha seus dados para ativar o monitoramento acadêmico individual na NEXORA."
                 icon={GraduationCap}
                 tone="student"
             >
@@ -227,8 +227,8 @@ export function StudentRegister() {
 
                         {step === 2 ? (
                             <>
-                                <Input label="Matricula" placeholder="Numero da matricula" icon={Hash} value={form.registration_number} onChange={(event) => updateField('registration_number', event.target.value)} required />
-                                <Select label="Curso academico" icon={GraduationCap} value={form.course_name} onChange={(event) => updateField('course_name', event.target.value)}>
+                                <Input label="Matrícula" placeholder="Número da matrícula" icon={Hash} value={form.registration_number} onChange={(event) => updateField('registration_number', event.target.value)} required />
+                                <Select label="Curso acadêmico" icon={GraduationCap} value={form.course_name} onChange={(event) => updateField('course_name', event.target.value)}>
                                     <option value="">Selecione o curso...</option>
                                     {availableCourses.map((course) => (
                                         <option key={course} value={course}>{course}</option>
@@ -300,7 +300,7 @@ export function StudentRegister() {
                                     icon={Lock}
                                     value={form.lyceum_password}
                                     onChange={(event) => updateField('lyceum_password', event.target.value)}
-                                    description="Se voce nunca alterou a senha do portal, a NEXORA usa o padrao institucional baseado no CPF."
+                                    description="Se você nunca alterou a senha do portal, a NEXORA usa o padrão institucional baseado no CPF."
                                 />
                             </>
                         ) : null}

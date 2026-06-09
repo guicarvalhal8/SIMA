@@ -35,7 +35,7 @@ export function PageHeader({
                             </span>
                             <div className="flex items-center gap-2 text-xs font-medium text-text-tertiary">
                                 <ArrowUpRight className="h-3.5 w-3.5" />
-                                Monitoramento, predicao e apoio a decisao academica
+                                Monitoramento, predição e apoio à decisão acadêmica
                             </div>
                         </div>
                     </div>

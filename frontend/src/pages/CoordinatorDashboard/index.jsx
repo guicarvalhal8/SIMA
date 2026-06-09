@@ -85,10 +85,10 @@ export function CoordinatorDashboard() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Coordenacao de curso"
+                title="Coordenação de curso"
                 subtitle={profile?.academic_course_name
-                    ? `Visao academica consolidada do curso ${profile.academic_course_name}, com leitura de desempenho, risco e disciplinas prioritarias.`
-                    : 'Visao academica consolidada do curso, com leitura de desempenho, risco e disciplinas prioritarias.'}
+                    ? `Visão acadêmica consolidada do curso ${profile.academic_course_name}, com leitura de desempenho, risco e disciplinas prioritárias.`
+                    : 'Visão acadêmica consolidada do curso, com leitura de desempenho, risco e disciplinas prioritárias.'}
                 icon={Shield}
                 actions={profile?.academic_course_name && (
                     <Badge variant="purple">{profile.academic_course_name}</Badge>
@@ -96,10 +96,10 @@ export function CoordinatorDashboard() {
             />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard title="Total de alunos" value={loading ? '...' : kpis.total_students || 0} icon={Users} tone="purple" helper="Base vinculada a coordenacao" />
-                <MetricCard title="GPA medio" value={loading ? '...' : Number(kpis.average_gpa || 0).toFixed(2)} icon={TrendingUp} tone="blue" helper="Desempenho agregado do curso" />
-                <MetricCard title="Disciplinas monitoradas" value={loading ? '...' : kpis.total_subjects || 0} icon={BookOpen} tone="amber" helper="Oferta academica acompanhada" />
-                <MetricCard title="Casos em risco" value={loading ? '...' : kpis.at_risk_count || 0} icon={AlertTriangle} tone="rose" helper="Alunos com prioridade de intervencao" />
+                <MetricCard title="Total de alunos" value={loading ? '...' : kpis.total_students || 0} icon={Users} tone="purple" helper="Base vinculada à coordenação" />
+                <MetricCard title="GPA médio" value={loading ? '...' : Number(kpis.average_gpa || 0).toFixed(2)} icon={TrendingUp} tone="blue" helper="Desempenho agregado do curso" />
+                <MetricCard title="Disciplinas monitoradas" value={loading ? '...' : kpis.total_subjects || 0} icon={BookOpen} tone="amber" helper="Oferta acadêmica acompanhada" />
+                <MetricCard title="Casos em risco" value={loading ? '...' : kpis.at_risk_count || 0} icon={AlertTriangle} tone="rose" helper="Alunos com prioridade de intervenção" />
             </div>
 
             {aiInsights && (
@@ -119,7 +119,7 @@ export function CoordinatorDashboard() {
                 <Card>
                     <CardHeader
                         title="Mapa de risco do curso"
-                        subtitle="Distribuicao atual dos niveis de atencao academica"
+                        subtitle="Distribuição atual dos níveis de atenção acadêmica"
                         icon={BarChart3}
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -135,17 +135,17 @@ export function CoordinatorDashboard() {
                 <Card>
                     <CardHeader
                         title="Indicadores estruturantes"
-                        subtitle="Taxa de aprovacao e frequencia media do curso"
+                        subtitle="Taxa de aprovação e frequência média do curso"
                         icon={GraduationCap}
                     />
                     <div className="space-y-6">
                         <ProgressLine
-                            label="Taxa de aprovacao"
+                            label="Taxa de aprovação"
                             value={Number(kpis.pass_rate || 0)}
                             tone="emerald"
                         />
                         <ProgressLine
-                            label="Frequencia media"
+                            label="Frequência média"
                             value={Number(kpis.average_attendance_rate || 0)}
                             tone="blue"
                         />
@@ -156,7 +156,7 @@ export function CoordinatorDashboard() {
             <Card>
                 <CardHeader
                     title="Alunos em maior prioridade"
-                    subtitle="Casos com maior necessidade de acao da coordenacao"
+                    subtitle="Casos com maior necessidade de ação da coordenação"
                     icon={AlertTriangle}
                 />
 
@@ -181,7 +181,7 @@ export function CoordinatorDashboard() {
                                     <p className="mt-1 text-sm text-text-secondary">{student.registration_number}</p>
                                 </div>
                                 <InlineMetric label="GPA" value={student.gpa?.toFixed(1) || '--'} />
-                                <InlineMetric label="Frequencia" value={`${student.attendance_rate?.toFixed(1) || '--'}%`} />
+                                <InlineMetric label="Frequência" value={`${student.attendance_rate?.toFixed(1) || '--'}%`} />
                                 <InlineMetric label="Score" value={`${((student.risk_score || 0) * 100).toFixed(0)}%`} />
                                 <div className="flex items-center lg:justify-end">
                                     <Badge variant={student.risk_level === 'critical' ? 'danger' : student.risk_level === 'high' ? 'purple' : student.risk_level === 'medium' ? 'warning' : 'success'}>
@@ -194,8 +194,8 @@ export function CoordinatorDashboard() {
                 ) : (
                     <EmptyState
                         icon={AlertTriangle}
-                        title="Nenhum caso prioritario no momento"
-                        description="A base atual nao possui alunos classificados com necessidade imediata de intervencao."
+                        title="Nenhum caso prioritário no momento"
+                        description="A base atual não possui alunos classificados com necessidade imediata de intervenção."
                     />
                 )}
             </Card>
@@ -203,7 +203,7 @@ export function CoordinatorDashboard() {
             <Card>
                 <CardHeader
                     title="Disciplinas do curso"
-                    subtitle="Visao rapida da oferta monitorada pela coordenacao"
+                    subtitle="Visão rápida da oferta monitorada pela coordenação"
                     icon={BookOpen}
                 />
 
@@ -230,8 +230,8 @@ export function CoordinatorDashboard() {
                 ) : (
                     <EmptyState
                         icon={BookOpen}
-                        title="Sem disciplinas disponiveis"
-                        description="As disciplinas vinculadas ao curso serao exibidas aqui assim que forem carregadas pelo backend."
+                        title="Sem disciplinas disponíveis"
+                        description="As disciplinas vinculadas ao curso serão exibidas aqui assim que forem carregadas pelo backend."
                     />
                 )}
             </Card>

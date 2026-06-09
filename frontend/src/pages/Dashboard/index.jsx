@@ -81,12 +81,12 @@ export function Dashboard() {
 
     const executiveHighlights = [
         {
-            title: 'Estabilidade academica',
-            description: `${Number(kpis.pass_rate || 0).toFixed(0)}% da base apresenta desempenho satisfatorio no recorte atual.`,
+            title: 'Estabilidade acadêmica',
+            description: `${Number(kpis.pass_rate || 0).toFixed(0)}% da base apresenta desempenho satisfatório no recorte atual.`,
         },
         {
-            title: 'Ponto de atencao',
-            description: `${kpis.at_risk_count || 0} alunos exigem monitoramento prioritario por risco academico.`,
+            title: 'Ponto de atenção',
+            description: `${kpis.at_risk_count || 0} alunos exigem monitoramento prioritário por risco acadêmico.`,
         },
         {
             title: 'Capacidade institucional',
@@ -97,8 +97,8 @@ export function Dashboard() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Visao institucional da NEXORA"
-                subtitle="Indicadores globais para pro-reitoria, com foco em risco academico, desempenho medio e capacidade de resposta institucional."
+                title="Visão institucional da NEXORA"
+                subtitle="Indicadores globais para pró-reitoria, com foco em risco acadêmico, desempenho médio e capacidade de resposta institucional."
                 icon={Shield}
             />
 
@@ -115,17 +115,17 @@ export function Dashboard() {
                     value={loading ? '...' : kpis.total_courses || 0}
                     icon={BookOpen}
                     tone="purple"
-                    helper="Oferta academica vinculada ao painel"
+                    helper="Oferta acadêmica vinculada ao painel"
                 />
                 <MetricCard
-                    title="GPA medio"
+                    title="GPA médio"
                     value={loading ? '...' : Number(kpis.average_gpa || 0).toFixed(2)}
                     icon={TrendingUp}
                     tone="blue"
-                    helper="Desempenho consolidado do periodo"
+                    helper="Desempenho consolidado do período"
                 />
                 <MetricCard
-                    title="Taxa de aprovacao"
+                    title="Taxa de aprovação"
                     value={loading ? '...' : `${Number(kpis.pass_rate || 0).toFixed(0)}%`}
                     icon={GraduationCap}
                     tone="emerald"
@@ -136,8 +136,8 @@ export function Dashboard() {
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.85fr]">
                 <Card>
                     <CardHeader
-                        title="Evolucao dos indicadores prioritarios"
-                        subtitle="Leitura executiva de desempenho medio e frequencia institucional"
+                        title="Evolução dos indicadores prioritários"
+                        subtitle="Leitura executiva de desempenho médio e frequência institucional"
                         icon={TrendingUp}
                     />
                     <div className="h-80">
@@ -159,7 +159,7 @@ export function Dashboard() {
                                 <Area
                                     type="monotone"
                                     dataKey="gpa"
-                                    name="GPA medio"
+                                    name="GPA médio"
                                     stroke="#0B57D0"
                                     strokeWidth={2.5}
                                     fill="url(#nexoraAreaBlue)"
@@ -167,7 +167,7 @@ export function Dashboard() {
                                 <Area
                                     type="monotone"
                                     dataKey="attendance"
-                                    name="Frequencia media"
+                                    name="Frequência média"
                                     stroke="#6A1BFF"
                                     strokeWidth={2.5}
                                     fill="url(#nexoraAreaPurple)"
@@ -180,8 +180,8 @@ export function Dashboard() {
                 <div className="space-y-6">
                     <Card>
                         <CardHeader
-                            title="Distribuicao de risco"
-                            subtitle="Base institucional segmentada por exposicao"
+                        title="Distribuição de risco"
+                        subtitle="Base institucional segmentada por exposição"
                             icon={AlertTriangle}
                         />
                         <div className="grid grid-cols-[150px_1fr] items-center gap-4">
@@ -217,8 +217,8 @@ export function Dashboard() {
                                         </div>
                                         <p className="mt-2 text-sm text-text-secondary">
                                             {item.name === 'Em risco'
-                                                ? 'Demandam acao imediata de monitoramento e apoio.'
-                                                : 'Mantem trajetoria academica considerada estavel.'}
+                                                ? 'Demandam ação imediata de monitoramento e apoio.'
+                                                : 'Mantêm trajetória acadêmica considerada estável.'}
                                         </p>
                                     </div>
                                 ))}
@@ -229,7 +229,7 @@ export function Dashboard() {
                     <Card variant="hero">
                         <CardHeader
                             title="Leituras executivas"
-                            subtitle="Sintese para priorizacao institucional"
+                            subtitle="Síntese para priorização institucional"
                             icon={Shield}
                         />
                         <div className="space-y-4">

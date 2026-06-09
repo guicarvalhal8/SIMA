@@ -1,5 +1,5 @@
 """
-Helpers de escopo de acesso para recursos academicos.
+Helpers de escopo de acesso para recursos acadêmicos.
 """
 
 from __future__ import annotations
@@ -7,9 +7,11 @@ from __future__ import annotations
 from sqlalchemy.orm import Query, Session
 
 from app.models.coordinator import Coordinator
-from app.models.professor import Professor
+from app.models.course import Course
+from app.models.professor import Professor, ProfessorCourse
 from app.models.student import Student
 from app.models.user import User, UserRole
+from app.utils.subject_name import normalize_subject_key
 
 
 def can_professor_access_student(db: Session, professor_user_id: int, student: Student) -> bool:
@@ -63,3 +65,24 @@ def scope_students_query(db: Session, current_user: User, query: Query) -> Query
         return query.filter(Student.course_name == coordinator.academic_course_name)
 
     return query.filter(Student.id == -1)
+
+
+def get_user_allowed_subject_keys(db: Session, current_user: User) -> set[str] | None:
+    if current_user.role in (UserRole.ADMIN, UserRole.VIEWER, UserRole.COORDINATOR):
+        return None
+
+    if current_user.role != UserRole.PROFESSOR:
+        return set()
+
+    rows = (
+        db.query(Course.name)
+        .join(ProfessorCourse, ProfessorCourse.course_id == Course.id)
+        .join(Professor, Professor.id == ProfessorCourse.professor_id)
+        .filter(Professor.user_id == current_user.id)
+        .all()
+    )
+    return {
+        normalize_subject_key(name)
+        for (name,) in rows
+        if name and normalize_subject_key(name)
+    }
