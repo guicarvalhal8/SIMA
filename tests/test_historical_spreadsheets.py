@@ -305,7 +305,7 @@ class TestPDFSpreadsheetUpload:
 
 class TestIncompleteSpreadsheet:
     def test_upload_incomplete_spreadsheet_triggers_prediction(self, professor_client):
-        """Verifica que o upload de uma planilha com notas incompletas define is_completed = False e gera notas projetadas para VA3."""
+        """Verifica que o upload de uma planilha com notas incompletas define is_completed = False, gera notas projetadas para VA3, frequência e situação final."""
         csv_data = (
             "aluno,sem_letivo,curso,disciplina,periodo,nota,frequencia,va1,va2\n"
             "Carlos Drumond,2024-1,Ciencia da Computacao,Estrutura de Dados,2,8.0,95.0,7.0,8.0\n"
@@ -338,6 +338,45 @@ class TestIncompleteSpreadsheet:
                 val = r.grades["VA3 (Projetada) ✨"]
                 assert isinstance(val, (int, float))
                 assert 0.0 <= val <= 10.0
+
+                # Verificar se a frequência foi salva e a situação foi estimada
+                assert r.attendance is not None
+                assert 0.0 <= r.attendance <= 100.0
+                assert "SITUACAO" in r.grades
+                assert any(term in r.grades["SITUACAO"] for term in ["Provável", "Aprovação", "Reprovação"])
+        finally:
+            db.close()
+
+    def test_upload_recursively_missing_grades(self, professor_client):
+        """Verifica que o upload de uma planilha onde falta VA2 e VA3 estima ambas de forma encadeada."""
+        csv_data = (
+            "aluno,sem_letivo,curso,disciplina,periodo,nota,frequencia,va1\n"
+            "Machado de Assis,2024-1,Ciencia da Computacao,Estrutura de Dados,2,7.0,85.0,7.5\n"
+        )
+        file_payload = {
+            "file": ("notas_recursivas_2024.csv", io.BytesIO(csv_data.encode("utf-8")), "text/csv")
+        }
+
+        # Executar upload
+        resp = professor_client.post("/api/historical-data/upload", files=file_payload)
+        assert resp.status_code == 200
+
+        db = SessionLocal()
+        try:
+            sheet = db.query(HistoricalSpreadsheet).filter(HistoricalSpreadsheet.filename == "notas_recursivas_2024.csv").first()
+            assert sheet is not None
+            assert sheet.is_completed is False
+
+            records = db.query(HistoricalRecord).filter(HistoricalRecord.spreadsheet_id == sheet.id).all()
+            assert len(records) == 1
+            r = records[0]
+
+            # Verificar se estimou a VA2 e VA3 projetadas
+            assert "VA2 (Projetada) ✨" in r.grades
+            assert "VA3 (Projetada) ✨" in r.grades
+            assert r.grades["VA2 (Projetada) ✨"] > 0
+            assert r.grades["VA3 (Projetada) ✨"] > 0
+            assert "SITUACAO" in r.grades
         finally:
             db.close()
 

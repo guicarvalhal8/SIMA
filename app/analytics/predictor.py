@@ -208,7 +208,7 @@ class PerformancePredictor:
 class PartialSemesterPredictor:
     """
     Preditor para planilhas em andamento.
-    Estima a nota da VA3 e Média Final baseando-se no desempenho parcial + histórico do aluno.
+    Estima a nota da VA3, frequência e Média Final baseando-se no desempenho parcial + histórico do aluno.
     """
 
     def __init__(self) -> None:
@@ -284,4 +284,102 @@ class PartialSemesterPredictor:
         X_scaled = self.scaler.transform(X)
         pred = self.model.predict(X_scaled)[0]
         return _round(max(0.0, min(10.0, float(pred))), 1)
+
+    def predict_missing_grades(
+        self,
+        grades: dict[str, Any],
+        gpa_cum: float | None,
+        failures: int,
+        is_working: bool,
+        class_schedule: str | None,
+    ) -> dict[str, float]:
+        """
+        Estima notas de VA2 e VA3 de forma recursiva baseada no que está preenchido.
+        Retorna dicionário de notas com as estimativas de IA injetadas.
+        """
+        normalized = {str(k).upper().strip(): v for k, v in grades.items()}
+
+        from app.historical.utils import _coerce_grade
+        va1_real = _coerce_grade(normalized.get("VA1"))
+        va2_real = _coerce_grade(normalized.get("VA2"))
+        va3_real = _coerce_grade(normalized.get("VA3"))
+
+        # Determinar VA1 (caso esteja nula, herdamos do GPA ou média)
+        va1_val = va1_real if va1_real is not None else (gpa_cum if gpa_cum is not None else 6.0)
+
+        # Se não temos VA2, estimamos com base em VA1
+        if va2_real is None:
+            gpa_val = gpa_cum if gpa_cum is not None else va1_val
+            va2_val = (va1_val * 0.60) + (gpa_val * 0.40)
+            if is_working:
+                va2_val -= 0.2
+            va2_val = _round(max(0.0, min(10.0, va2_val)), 1)
+            is_va2_projected = True
+        else:
+            va2_val = va2_real
+            is_va2_projected = False
+
+        # Se não temos VA3, estimamos com base em VA1 e VA2
+        if va3_real is None:
+            va3_val = self.predict_va3(
+                va1=va1_val,
+                va2=va2_val,
+                gpa_cum=gpa_cum,
+                failures=failures,
+                is_working=is_working,
+                class_schedule=class_schedule
+            )
+            is_va3_projected = True
+        else:
+            va3_val = va3_real
+            is_va3_projected = False
+
+        result = {}
+        for k, v in grades.items():
+            if str(k).upper().strip() not in ("VA1", "VA2", "VA3", "VA3 (PROJETADA) ✨", "VA2 (PROJETADA) ✨"):
+                result[k] = v
+
+        result["VA1"] = va1_val
+        if is_va2_projected:
+            result["VA2 (Projetada) ✨"] = va2_val
+        else:
+            result["VA2"] = va2_val
+
+        if is_va3_projected:
+            result["VA3 (Projetada) ✨"] = va3_val
+        else:
+            result["VA3"] = va3_val
+
+        return result
+
+    def predict_final_attendance(
+        self,
+        current_attendance: float | None,
+        historical_attendance: float | None,
+    ) -> float:
+        """
+        Estima a taxa de presença final do aluno ponderando o desempenho corrente e o histórico.
+        """
+        curr_val = float(current_attendance) if current_attendance is not None else 100.0
+        hist_val = float(historical_attendance) if historical_attendance is not None else curr_val
+
+        # Pondera: 70% presença atual na matéria, 30% comportamento histórico
+        projected = (curr_val * 0.70) + (hist_val * 0.30)
+        return _round(max(0.0, min(100.0, projected)), 2)
+
+    def predict_final_situation(
+        self,
+        final_grade: float,
+        final_attendance: float,
+    ) -> str:
+        """
+        Determina a situação projetada com base na nota e frequência estimadas.
+        """
+        if final_grade < 6.0 and final_attendance < 75.0:
+            return "Reprovação Provável (Nota e Falta)"
+        elif final_grade < 6.0:
+            return "Reprovação Provável (Nota)"
+        elif final_attendance < 75.0:
+            return "Reprovação Provável (Falta)"
+        return "Aprovação Provável"
 

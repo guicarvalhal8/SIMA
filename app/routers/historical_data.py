@@ -106,18 +106,28 @@ def _predict_and_enrich_incomplete_spreadsheet(
     """
     is_completed = True
 
-    # 1. Detecção automática de incompletude
+    # Só tratamos como incompleta se a planilha contiver chaves de avaliações parciais (ex: VA1, VA2, P1, P2)
+    has_partial_structure = False
     for r in records_data:
         g = r.get("grades") or {}
         keys_upper = {str(k).upper().strip(): v for k, v in g.items()}
-
-        has_va1 = "VA1" in keys_upper and keys_upper["VA1"] not in (None, "")
-        has_va2 = "VA2" in keys_upper and keys_upper["VA2"] not in (None, "")
-        has_va3 = "VA3" in keys_upper and keys_upper["VA3"] not in (None, "")
-
-        if (has_va1 or has_va2) and not has_va3:
-            is_completed = False
+        if any(any(p in k for p in ("VA1", "VA2", "P1", "P2", "NOTA1", "NOTA2")) for k in keys_upper.keys()):
+            has_partial_structure = True
             break
+
+    if has_partial_structure:
+        for r in records_data:
+            g = r.get("grades") or {}
+            keys_upper = {str(k).upper().strip(): v for k, v in g.items()}
+
+            has_va1 = "VA1" in keys_upper and keys_upper["VA1"] not in (None, "")
+            has_va2 = "VA2" in keys_upper and keys_upper["VA2"] not in (None, "")
+            has_va3 = "VA3" in keys_upper and keys_upper["VA3"] not in (None, "")
+
+            # Se faltar qualquer uma das avaliações fundamentais, consideramos incompleta
+            if not has_va1 or not has_va2 or not has_va3:
+                is_completed = False
+                break
 
     # Se for completa, retorna True
     if is_completed:
@@ -129,7 +139,7 @@ def _predict_and_enrich_incomplete_spreadsheet(
     train_features = []
     train_targets = []
 
-    # Busca registros históricos do professor para tentar treinar
+    # Busca registros históricos para treinar
     past_records = db.query(HistoricalRecord).filter(
         HistoricalRecord.grades.isnot(None)
     ).all()
@@ -143,7 +153,6 @@ def _predict_and_enrich_incomplete_spreadsheet(
                 va2 = _coerce_grade(k_upper["VA2"])
                 va3 = _coerce_grade(k_upper["VA3"])
                 if va1 is not None and va2 is not None and va3 is not None:
-                    # GPA aproximado
                     gpa_approx = (va1 + va2 + va3) / 3
                     train_features.append([va1, va2, gpa_approx, 0.0, 0.0, 0.0])
                     train_targets.append(va3)
@@ -156,60 +165,71 @@ def _predict_and_enrich_incomplete_spreadsheet(
         except Exception as e:
             logger.warning("Falha ao treinar modelo preditivo: %s. Utilizando fallback matemático.", e)
 
-    # 3. Predizer VA3 para cada registro incompleto
+    # 3. Predizer notas e presenças de forma encadeada para cada registro incompleto
     for r in records_data:
         g = r.setdefault("grades", {})
-        k_upper = {str(k).upper().strip(): v for k, v in g.items()}
 
-        has_va1 = "VA1" in k_upper and k_upper["VA1"] not in (None, "")
-        has_va2 = "VA2" in k_upper and k_upper["VA2"] not in (None, "")
-        has_va3 = "VA3" in k_upper and k_upper["VA3"] not in (None, "")
+        student_code = r.get("student_code")
+        student_name = r.get("student_name")
 
-        if (has_va1 or has_va2) and not has_va3:
-            va1_val = _coerce_grade(k_upper.get("VA1", 5.0))
-            va2_val = _coerce_grade(k_upper.get("VA2", 5.0))
+        student = None
+        if student_code:
+            student = db.query(Student).filter(Student.registration_number == student_code).first()
+        if not student and student_name:
+            student = db.query(Student).filter(Student.name.ilike(student_name.strip())).first()
 
-            student_code = r.get("student_code")
-            student_name = r.get("student_name")
+        gpa = None
+        failures = 0
+        is_working = False
+        schedule = None
+        hist_att = None
 
-            student = None
-            if student_code:
-                student = db.query(Student).filter(Student.registration_number == student_code).first()
-            if not student and student_name:
-                student = db.query(Student).filter(Student.name.ilike(student_name.strip())).first()
+        if student:
+            is_working = bool(student.is_working)
+            schedule = student.class_schedule.value if student.class_schedule else None
 
-            gpa = None
-            failures = 0
-            is_working = False
-            schedule = None
+            # Calcular GPA histórico
+            grades_list = db.query(Grade.value).filter(Grade.student_id == student.id).all()
+            if grades_list:
+                gpa = sum(grade_val[0] for grade_val in grades_list) / len(grades_list)
 
-            if student:
-                is_working = bool(student.is_working)
-                schedule = student.class_schedule.value if student.class_schedule else None
+            # Contar reprovações passadas
+            failures = db.query(Enrollment).filter(
+                Enrollment.student_id == student.id,
+                Enrollment.status == EnrollmentStatus.FAILED
+            ).count()
 
-                # Calcular GPA histórico
-                grades_list = db.query(Grade.value).filter(Grade.student_id == student.id).all()
-                if grades_list:
-                    gpa = sum(grade_val[0] for grade_val in grades_list) / len(grades_list)
+            # Presença histórica do aluno
+            attendances_list = db.query(Attendance.status).filter(Attendance.student_id == student.id).all()
+            if attendances_list:
+                present = sum(1 for a in attendances_list if a[0] in ("PRESENT", "LATE", "JUSTIFIED"))
+                hist_att = (present / len(attendances_list)) * 100
 
-                # Contar reprovações passadas
-                failures = db.query(Enrollment).filter(
-                    Enrollment.student_id == student.id,
-                    Enrollment.status == EnrollmentStatus.FAILED
-                ).count()
+        # Predição de notas de forma recursiva
+        predicted_grades = predictor.predict_missing_grades(
+            grades=g,
+            gpa_cum=gpa,
+            failures=failures,
+            is_working=is_working,
+            class_schedule=schedule
+        )
 
-            # Prediz VA3
-            pred_va3 = predictor.predict_va3(
-                va1=va1_val,
-                va2=va2_val,
-                gpa_cum=gpa,
-                failures=failures,
-                is_working=is_working,
-                class_schedule=schedule
-            )
+        # Atualiza o dicionário de notas
+        r["grades"] = predicted_grades
 
-            # Grava no dicionário de notas
-            g["VA3 (Projetada) ✨"] = pred_va3
+        # Predição de frequência final projetada
+        curr_att = r.get("attendance")
+        predicted_att = predictor.predict_final_attendance(curr_att, hist_att)
+        r["attendance"] = predicted_att
+
+        # Calcula a média projetada final a partir das notas previstas
+        from app.historical.serializer import _extract_numeric_grade_summary
+        avg_proj, _ = _extract_numeric_grade_summary(predicted_grades)
+        avg_val = avg_proj if avg_proj is not None else 5.0
+
+        # Estimar situação final prevista do aluno
+        situation = predictor.predict_final_situation(avg_val, predicted_att)
+        r["grades"]["SITUACAO"] = situation
 
     return False
 
