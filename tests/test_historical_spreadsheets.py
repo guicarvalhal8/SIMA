@@ -301,3 +301,43 @@ class TestPDFSpreadsheetUpload:
             assert {r.student_name for r in records} == {"Joao da Silva", "Maria Oliveira", "Pedro Santos"}
         finally:
             db.close()
+
+
+class TestIncompleteSpreadsheet:
+    def test_upload_incomplete_spreadsheet_triggers_prediction(self, professor_client):
+        """Verifica que o upload de uma planilha com notas incompletas define is_completed = False e gera notas projetadas para VA3."""
+        csv_data = (
+            "aluno,sem_letivo,curso,disciplina,periodo,nota,frequencia,va1,va2\n"
+            "Carlos Drumond,2024-1,Ciencia da Computacao,Estrutura de Dados,2,8.0,95.0,7.0,8.0\n"
+            "Cecilia Meireles,2024-1,Ciencia da Computacao,Estrutura de Dados,2,9.0,100.0,9.0,9.5\n"
+        )
+
+        file_payload = {
+            "file": ("notas_incompletas_2024.csv", io.BytesIO(csv_data.encode("utf-8")), "text/csv")
+        }
+
+        # Executar upload
+        resp = professor_client.post("/api/historical-data/upload", files=file_payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["course_organized"] is True
+
+        # Verificar no banco se a planilha foi salva com is_completed = False
+        db = SessionLocal()
+        try:
+            sheet = db.query(HistoricalSpreadsheet).filter(HistoricalSpreadsheet.filename == "notas_incompletas_2024.csv").first()
+            assert sheet is not None
+            assert sheet.is_completed is False
+
+            records = db.query(HistoricalRecord).filter(HistoricalRecord.spreadsheet_id == sheet.id).all()
+            assert len(records) == 2
+
+            # Verificar se em records temos a chave "VA3 (Projetada) ✨"
+            for r in records:
+                assert "VA3 (Projetada) ✨" in r.grades
+                val = r.grades["VA3 (Projetada) ✨"]
+                assert isinstance(val, (int, float))
+                assert 0.0 <= val <= 10.0
+        finally:
+            db.close()
+

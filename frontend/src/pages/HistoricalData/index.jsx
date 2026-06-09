@@ -938,67 +938,143 @@ export function HistoricalData({ defaultTab = 'history' }) {
                         {loading ? (
                             <div className="flex min-h-[200px] items-center justify-center gap-3 text-text-secondary">
                                 <Loader2 className="h-5 w-5 animate-spin text-accent-blue" />
-                                Carregando planilhas históricas...
+                                Carregando planilhas...
                             </div>
                         ) : spreadsheets.length === 0 ? (
                             <EmptyState
                                 icon={Upload}
                                 title="Nenhuma planilha cadastrada"
-                                description="Realize o upload de sua primeira base histórica para começar a usufruir das análises com chat de IA."
+                                description="Realize o upload de sua primeira planilha para começar a usufruir das análises e predições com IA."
                             />
                         ) : (
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {spreadsheets.map((sheet) => {
-                                    const isPdf = sheet.filename.toLowerCase().endsWith('.pdf');
-                                    return (
-                                        <motion.div
-                                            key={sheet.id}
-                                            whileHover={{ y: -4 }}
-                                            onClick={() => handleSelectSpreadsheet(sheet)}
-                                            className="cursor-pointer flex flex-col rounded-[26px] border border-border-subtle bg-white/70 p-5 shadow-soft hover:bg-white hover:border-indigo-200 transition-all group"
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
-                                                    isPdf ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
-                                                }`}>
-                                                    <FileSpreadsheet className="h-5 w-5" />
-                                                </div>
-                                                <button
-                                                    onClick={(e) => handleDeleteSpreadsheet(sheet.id, e)}
-                                                    className="p-2 text-text-tertiary hover:text-danger hover:bg-danger/5 rounded-xl transition"
-                                                    title="Excluir arquivo"
+                            <div className="space-y-8">
+                                {/* Seção: Em Andamento */}
+                                {spreadsheets.filter(s => !s.is_completed).length > 0 && (
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-indigo-600 flex items-center gap-2 px-1">
+                                            <span className="flex h-2.5 w-2.5 rounded-full bg-indigo-600 animate-pulse" />
+                                            ⚡ Planilhas em Andamento (Previsões por IA Ativas)
+                                        </h3>
+                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                            {spreadsheets.filter(s => !s.is_completed).map((sheet) => {
+                                                const isPdf = sheet.filename.toLowerCase().endsWith('.pdf');
+                                                return (
+                                                    <motion.div
+                                                        key={sheet.id}
+                                                        whileHover={{ y: -4 }}
+                                                        onClick={() => handleSelectSpreadsheet(sheet)}
+                                                        className="cursor-pointer flex flex-col rounded-[26px] border-2 border-indigo-100 bg-gradient-to-br from-indigo-50/20 to-white p-5 shadow-soft hover:bg-white hover:border-indigo-400 hover:shadow-indigo-100/50 transition-all group relative overflow-hidden"
+                                                    >
+                                                        <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center gap-0.5">
+                                                            <span>✨ IA Preditiva</span>
+                                                        </div>
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600`}>
+                                                                <FileSpreadsheet className="h-5 w-5" />
+                                                            </div>
+                                                            <button
+                                                                onClick={(e) => handleDeleteSpreadsheet(sheet.id, e)}
+                                                                className="p-2 text-text-tertiary hover:text-danger hover:bg-danger/5 rounded-xl transition mr-8"
+                                                                title="Excluir arquivo"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                        <h4 className="mt-4 text-xs font-bold text-text-primary group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                                            {sheet.filename}
+                                                        </h4>
+                                                        <p className="text-[10px] text-text-secondary mt-1 flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {new Date(sheet.uploaded_at).toLocaleDateString('pt-BR')}
+                                                        </p>
+                                                        <div className="mt-4 flex items-center gap-1.5 flex-wrap">
+                                                            <Badge variant="neutral">{sheet.semester || 'Semestre N/A'}</Badge>
+                                                            <Badge variant="neutral" className="line-clamp-1 max-w-[120px]">{sheet.course_name || 'Geral'}</Badge>
+                                                            <Badge variant="neutral" className="bg-indigo-50 text-indigo-700 border-indigo-200">Em Andamento</Badge>
+                                                        </div>
+                                                        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-3 text-[10px] text-text-secondary">
+                                                            <div>
+                                                                <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Alunos</span>
+                                                                <span className="font-semibold text-text-primary mt-0.5 block">{sheet.records_count}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Média Proj.</span>
+                                                                <span className="font-semibold text-indigo-600 mt-0.5 block">{sheet.avg_grade ? sheet.avg_grade.toFixed(1) : '--'} ✨</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Presença</span>
+                                                                <span className="font-semibold text-text-primary mt-0.5 block">{sheet.avg_attendance ? `${sheet.avg_attendance.toFixed(0)}%` : '--'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Seção: Concluídas */}
+                                <div className="space-y-4">
+                                    {spreadsheets.filter(s => !s.is_completed).length > 0 && (
+                                        <h3 className="text-xs font-bold text-text-secondary flex items-center gap-2 pt-4 border-t border-border-subtle px-1">
+                                            📂 Planilhas Concluídas (Históricas)
+                                        </h3>
+                                    )}
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        {spreadsheets.filter(s => s.is_completed).map((sheet) => {
+                                            const isPdf = sheet.filename.toLowerCase().endsWith('.pdf');
+                                            return (
+                                                <motion.div
+                                                    key={sheet.id}
+                                                    whileHover={{ y: -4 }}
+                                                    onClick={() => handleSelectSpreadsheet(sheet)}
+                                                    className="cursor-pointer flex flex-col rounded-[26px] border border-border-subtle bg-white/70 p-5 shadow-soft hover:bg-white hover:border-indigo-200 transition-all group"
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                            <h4 className="mt-4 text-xs font-bold text-text-primary group-hover:text-indigo-600 transition-colors line-clamp-1">
-                                                {sheet.filename}
-                                            </h4>
-                                            <p className="text-[10px] text-text-secondary mt-1 flex items-center gap-1">
-                                                <Calendar className="h-3 w-3" />
-                                                {new Date(sheet.uploaded_at).toLocaleDateString('pt-BR')}
-                                            </p>
-                                            <div className="mt-4 flex items-center gap-1.5 flex-wrap">
-                                                <Badge variant="neutral">{sheet.semester || 'Semestre N/A'}</Badge>
-                                                <Badge variant="neutral" className="line-clamp-1 max-w-[120px]">{sheet.course_name || 'Geral'}</Badge>
-                                            </div>
-                                            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-3 text-[10px] text-text-secondary">
-                                                <div>
-                                                    <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Alunos</span>
-                                                    <span className="font-semibold text-text-primary mt-0.5 block">{sheet.records_count}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Média</span>
-                                                    <span className="font-semibold text-emerald-600 mt-0.5 block">{sheet.avg_grade ? sheet.avg_grade.toFixed(1) : '--'}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Presença</span>
-                                                    <span className="font-semibold text-text-primary mt-0.5 block">{sheet.avg_attendance ? `${sheet.avg_attendance.toFixed(0)}%` : '--'}</span>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                                                            isPdf ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                                                        }`}>
+                                                            <FileSpreadsheet className="h-5 w-5" />
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => handleDeleteSpreadsheet(sheet.id, e)}
+                                                            className="p-2 text-text-tertiary hover:text-danger hover:bg-danger/5 rounded-xl transition"
+                                                            title="Excluir arquivo"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                    <h4 className="mt-4 text-xs font-bold text-text-primary group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                                        {sheet.filename}
+                                                    </h4>
+                                                    <p className="text-[10px] text-text-secondary mt-1 flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {new Date(sheet.uploaded_at).toLocaleDateString('pt-BR')}
+                                                    </p>
+                                                    <div className="mt-4 flex items-center gap-1.5 flex-wrap">
+                                                        <Badge variant="neutral">{sheet.semester || 'Semestre N/A'}</Badge>
+                                                        <Badge variant="neutral" className="line-clamp-1 max-w-[120px]">{sheet.course_name || 'Geral'}</Badge>
+                                                        <Badge variant="neutral" className="bg-emerald-50 text-emerald-700 border-emerald-200">Concluído</Badge>
+                                                    </div>
+                                                    <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-3 text-[10px] text-text-secondary">
+                                                        <div>
+                                                            <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Alunos</span>
+                                                            <span className="font-semibold text-text-primary mt-0.5 block">{sheet.records_count}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Média</span>
+                                                            <span className="font-semibold text-emerald-600 mt-0.5 block">{sheet.avg_grade ? sheet.avg_grade.toFixed(1) : '--'}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="block text-[9px] uppercase tracking-wider text-text-tertiary">Presença</span>
+                                                            <span className="font-semibold text-text-primary mt-0.5 block">{sheet.avg_attendance ? `${sheet.avg_attendance.toFixed(0)}%` : '--'}</span>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </Card>

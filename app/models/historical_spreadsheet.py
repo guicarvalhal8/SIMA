@@ -3,7 +3,7 @@ Modelo de dados para planilhas históricas de desempenho subidas no sistema (His
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Float
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
@@ -28,6 +28,9 @@ class HistoricalSpreadsheet(BaseModel):
 
     # Dono da planilha
     professor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Indicação se a planilha está em andamento (incompleta) ou se já foi concluída
+    is_completed = Column(Boolean, default=True, nullable=False, server_default="true")
 
     # Relacionamentos
     professor = relationship("User")

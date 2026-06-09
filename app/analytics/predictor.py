@@ -203,3 +203,85 @@ class PerformancePredictor:
         elif gpa >= 4.0:
             return "needs_improvement"
         return "critical"
+
+
+class PartialSemesterPredictor:
+    """
+    Preditor para planilhas em andamento.
+    Estima a nota da VA3 e Média Final baseando-se no desempenho parcial + histórico do aluno.
+    """
+
+    def __init__(self) -> None:
+        self.model = Ridge(alpha=1.0, random_state=42)
+        self.scaler = StandardScaler()
+        self._is_trained = False
+
+    def train(self, features: List[List[float]], targets: List[float]) -> Dict[str, Any]:
+        """
+        Treina o modelo com dados históricos de semestres passados.
+        features deve conter: [[va1, va2, gpa_cumulative, failures, is_working, is_night_schedule], ...]
+        targets deve conter: [va3_real, ...]
+        """
+        X = np.array(features, dtype=float)
+        y = np.array(targets, dtype=float)
+
+        if len(X) < 5:
+            return {"error": "Dados insuficientes para treinamento (mínimo 5)"}
+
+        X_scaled = self.scaler.fit_transform(X)
+        self.model.fit(X_scaled, y)
+        self._is_trained = True
+
+        r2 = self.model.score(X_scaled, y)
+        return {
+            "status": "trained",
+            "n_samples": len(X),
+            "r2_score": _round(r2),
+            "feature_names": ["va1", "va2", "gpa_cumulative", "failures", "is_working", "is_night_schedule"],
+            "coefficients": [_round(c) for c in self.model.coef_],
+        }
+
+    def predict_va3(
+        self,
+        va1: float | None,
+        va2: float | None,
+        gpa_cum: float | None,
+        failures: int,
+        is_working: bool,
+        class_schedule: str | None,
+    ) -> float:
+        """
+        Prediz a nota da VA3 para um aluno em andamento.
+        """
+        is_night = 1.0 if str(class_schedule or "").upper() in ("NIGHT", "INTEGRAL") else 0.0
+        is_working_val = 1.0 if is_working else 0.0
+        failures_val = float(failures)
+
+        # Garante valores válidos para notas vazias
+        va1_val = float(va1) if va1 is not None else 5.0
+        va2_val = float(va2) if va2 is not None else 5.0
+        gpa_val = float(gpa_cum) if gpa_cum is not None else (va1_val + va2_val) / 2
+
+        if not self._is_trained:
+            # Fallback heurístico inteligente:
+            # Ponderação: 70% notas atuais, 30% histórico
+            # Penalidades leves para quem trabalha + estuda à noite
+            avg_partial = (va1_val + va2_val) / 2
+
+            penalty = 0.0
+            if is_working_val > 0:
+                penalty += 0.2
+            if is_night > 0:
+                penalty += 0.1
+            if failures_val > 0:
+                penalty += min(0.3, failures_val * 0.1)
+
+            predicted = (avg_partial * 0.70) + (gpa_val * 0.30) - penalty
+            return _round(max(0.0, min(10.0, predicted)), 1)
+
+        features = [[va1_val, va2_val, gpa_val, failures_val, is_working_val, is_night]]
+        X = np.array(features, dtype=float)
+        X_scaled = self.scaler.transform(X)
+        pred = self.model.predict(X_scaled)[0]
+        return _round(max(0.0, min(10.0, float(pred))), 1)
+

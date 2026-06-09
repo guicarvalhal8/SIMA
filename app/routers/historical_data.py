@@ -28,6 +28,7 @@ from app.security.rbac import require_role
 from app.services.gemini_service import gemini_service
 from app.services.historical_analysis_service import HistoricalAnalysisService
 from app.services.historical_export_service import ANALYSIS_TITLES, HistoricalExportService
+from app.analytics.predictor import PartialSemesterPredictor
 
 # Imports dos módulos do pacote historical
 from app.historical.utils import (
@@ -91,6 +92,126 @@ def _validate_upload(filename: str, content: bytes) -> str:
         )
 
     return extension
+
+
+def _predict_and_enrich_incomplete_spreadsheet(
+    db: Session,
+    records_data: list[dict[str, Any]],
+    professor_id: int
+) -> bool:
+    """
+    Detecta se a planilha é incompleta (lançamento parcial).
+    Se for, faz a predição da nota de VA3 e enriquece o campo grades de cada aluno.
+    Retorna True se for completa, False se for incompleta/em andamento.
+    """
+    is_completed = True
+
+    # 1. Detecção automática de incompletude
+    for r in records_data:
+        g = r.get("grades") or {}
+        keys_upper = {str(k).upper().strip(): v for k, v in g.items()}
+
+        has_va1 = "VA1" in keys_upper and keys_upper["VA1"] not in (None, "")
+        has_va2 = "VA2" in keys_upper and keys_upper["VA2"] not in (None, "")
+        has_va3 = "VA3" in keys_upper and keys_upper["VA3"] not in (None, "")
+
+        if (has_va1 or has_va2) and not has_va3:
+            is_completed = False
+            break
+
+    # Se for completa, retorna True
+    if is_completed:
+        return True
+
+    # 2. Configura o preditor
+    predictor = PartialSemesterPredictor()
+
+    train_features = []
+    train_targets = []
+
+    # Busca registros históricos do professor para tentar treinar
+    past_records = db.query(HistoricalRecord).filter(
+        HistoricalRecord.grades.isnot(None)
+    ).all()
+
+    for r in past_records[:1000]:
+        g = r.grades or {}
+        k_upper = {str(k).upper().strip(): v for k, v in g.items()}
+        if "VA1" in k_upper and "VA2" in k_upper and "VA3" in k_upper:
+            try:
+                va1 = _coerce_grade(k_upper["VA1"])
+                va2 = _coerce_grade(k_upper["VA2"])
+                va3 = _coerce_grade(k_upper["VA3"])
+                if va1 is not None and va2 is not None and va3 is not None:
+                    # GPA aproximado
+                    gpa_approx = (va1 + va2 + va3) / 3
+                    train_features.append([va1, va2, gpa_approx, 0.0, 0.0, 0.0])
+                    train_targets.append(va3)
+            except Exception:
+                continue
+
+    if len(train_features) >= 10:
+        try:
+            predictor.train(train_features, train_targets)
+        except Exception as e:
+            logger.warning("Falha ao treinar modelo preditivo: %s. Utilizando fallback matemático.", e)
+
+    # 3. Predizer VA3 para cada registro incompleto
+    for r in records_data:
+        g = r.setdefault("grades", {})
+        k_upper = {str(k).upper().strip(): v for k, v in g.items()}
+
+        has_va1 = "VA1" in k_upper and k_upper["VA1"] not in (None, "")
+        has_va2 = "VA2" in k_upper and k_upper["VA2"] not in (None, "")
+        has_va3 = "VA3" in k_upper and k_upper["VA3"] not in (None, "")
+
+        if (has_va1 or has_va2) and not has_va3:
+            va1_val = _coerce_grade(k_upper.get("VA1", 5.0))
+            va2_val = _coerce_grade(k_upper.get("VA2", 5.0))
+
+            student_code = r.get("student_code")
+            student_name = r.get("student_name")
+
+            student = None
+            if student_code:
+                student = db.query(Student).filter(Student.registration_number == student_code).first()
+            if not student and student_name:
+                student = db.query(Student).filter(Student.name.ilike(student_name.strip())).first()
+
+            gpa = None
+            failures = 0
+            is_working = False
+            schedule = None
+
+            if student:
+                is_working = bool(student.is_working)
+                schedule = student.class_schedule.value if student.class_schedule else None
+
+                # Calcular GPA histórico
+                grades_list = db.query(Grade.value).filter(Grade.student_id == student.id).all()
+                if grades_list:
+                    gpa = sum(grade_val[0] for grade_val in grades_list) / len(grades_list)
+
+                # Contar reprovações passadas
+                failures = db.query(Enrollment).filter(
+                    Enrollment.student_id == student.id,
+                    Enrollment.status == EnrollmentStatus.FAILED
+                ).count()
+
+            # Prediz VA3
+            pred_va3 = predictor.predict_va3(
+                va1=va1_val,
+                va2=va2_val,
+                gpa_cum=gpa,
+                failures=failures,
+                is_working=is_working,
+                class_schedule=schedule
+            )
+
+            # Grava no dicionário de notas
+            g["VA3 (Projetada) ✨"] = pred_va3
+
+    return False
 
 
 @router.post("/upload", response_model=HistoricalUploadResponse)
@@ -177,6 +298,9 @@ async def upload_historical_spreadsheet(
                 logger.error("Erro na limpeza ativa por IA: %s", clean_exc)
                 warnings.append(f"Aviso: Não foi possível completar a limpeza por IA devido a uma falha: {clean_exc}. Os dados originais foram mantidos.")
 
+        # Detecção de planilhas em andamento e predição inteligente de notas
+        is_completed = _predict_and_enrich_incomplete_spreadsheet(db, records_data, current_user.id)
+
         class_groups = _build_upload_class_groups(records_data)
 
         # 1. Agregação e cálculos de estatísticas da planilha
@@ -214,13 +338,14 @@ async def upload_historical_spreadsheet(
             )
             db.flush()
 
-            # Atualizar metadados da planilha
+            # Metadados da planilha
             spreadsheet.filename = file.filename or "planilha_desconhecida"
             spreadsheet.semester = unique_semesters[0] if len(unique_semesters) == 1 else "Multiplos"
             spreadsheet.course_name = unique_courses[0] if len(unique_courses) == 1 else "Multiplos"
             spreadsheet.records_count = len(records_data)
             spreadsheet.avg_grade = avg_grade
             spreadsheet.avg_attendance = avg_attendance
+            spreadsheet.is_completed = is_completed
         else:
             # Criar nova planilha
             spreadsheet = HistoricalSpreadsheet(
@@ -230,7 +355,8 @@ async def upload_historical_spreadsheet(
                 records_count=len(records_data),
                 avg_grade=avg_grade,
                 avg_attendance=avg_attendance,
-                professor_id=current_user.id
+                professor_id=current_user.id,
+                is_completed=is_completed,
             )
             db.add(spreadsheet)
 
@@ -688,6 +814,7 @@ def list_uploaded_spreadsheets(
                 "records_count": s.records_count,
                 "avg_grade": s.avg_grade,
                 "avg_attendance": s.avg_attendance,
+                "is_completed": s.is_completed,
             }
             for s in spreadsheets
         ],
