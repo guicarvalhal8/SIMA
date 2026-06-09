@@ -34,6 +34,13 @@ function getRiskVariant(level) {
     return 'success';
 }
 
+const riskLabels = {
+    low: 'Baixo',
+    medium: 'Médio',
+    high: 'Alto',
+    critical: 'Crítico',
+};
+
 function buildAnalysisLink(role, analysis, params = {}) {
     const query = new URLSearchParams({ analysis });
     Object.entries(params).forEach(([key, value]) => {
@@ -150,7 +157,7 @@ export function ProfessorDashboard() {
 
                     if (statsRes.status === 'fulfilled') setProreitorStats(statsRes.value.data);
                     if (workspaceRes.status === 'fulfilled') setWorkspace(workspaceRes.value.data);
-                    setProfile({ user_name: 'Pro-Reitor' });
+                    setProfile({ user_name: 'Pró-Reitor' });
                 } else {
                     const [profileRes, workspaceRes] = await Promise.allSettled([
                         api.get('/professors/me'),
@@ -406,10 +413,10 @@ export function ProfessorDashboard() {
                         <div>
                             <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
                                 <BrainCircuit className="h-4 w-4 text-indigo-600 animate-pulse" />
-                                Fonte Ativa de Analise e Monitoramento
+                                Fonte Ativa de Análise e Monitoramento
                             </h3>
                             <p className="text-[11px] text-text-secondary mt-0.5">
-                                Escolha visualizar os dados em tempo real (Lyceum) ou as analises dos dashboards de planilhas.
+                                Escolha visualizar os dados em tempo real (Lyceum) ou as análises dos dashboards de planilhas.
                             </p>
                         </div>
                         <div className="inline-flex items-center gap-1 bg-white/80 p-1 rounded-xl shadow-inner border border-black/5 flex-wrap">
@@ -451,7 +458,7 @@ export function ProfessorDashboard() {
                                 {roleMeta.area}
                             </h2>
                             <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
-                                Monitoramento institucional com foco em desempenho, risco e tomada de decisao.
+                                Monitoramento institucional com foco em desempenho, risco e tomada de decisão.
                             </p>
                             <div className="mt-4 flex items-center gap-2">
                                 <span className="inline-flex items-center rounded-full bg-white/78 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary shadow-sm">
@@ -570,10 +577,10 @@ export function ProfessorDashboard() {
                                                         </div>
                                                     </div>
                                                     <InlineMetric label="GPA" value={student.gpa != null ? Number(student.gpa).toFixed(2) : '--'} />
-                                                    <InlineMetric label="Presenca" value={student.attendance_rate != null ? `${Number(student.attendance_rate).toFixed(0)}%` : '--'} />
+                                                    <InlineMetric label="Presença" value={student.attendance_rate != null ? `${Number(student.attendance_rate).toFixed(0)}%` : '--'} />
                                                     <InlineMetric label="Risco" value={student.risk_score != null ? `${(Number(student.risk_score) * 100).toFixed(0)}%` : '--'} />
                                                     <div className="flex items-center lg:justify-end">
-                                                        <Badge variant={getRiskVariant(student.risk_level)}>{student.risk_level}</Badge>
+                                                        <Badge variant={getRiskVariant(student.risk_level)}>{riskLabels[student.risk_level] || student.risk_level}</Badge>
                                                     </div>
                                                 </motion.div>
                                             ))}
@@ -607,10 +614,10 @@ export function ProfessorDashboard() {
                         <div>
                             <h4 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
                                 <BrainCircuit className="h-4 w-4 text-indigo-600 animate-pulse" />
-                                Foco da Analise Histórica
+                                Foco da Análise Histórica
                             </h4>
                             <p className="text-[11px] text-text-secondary mt-0.5">
-                                Escolha fazer uma analise geral do histórico ou selecione uma planilha específica para gerar analises e diagnósticos pedagógicos de IA.
+                                Escolha fazer uma análise geral do histórico ou selecione uma planilha específica para gerar análises e diagnósticos pedagógicos de IA.
                             </p>
                         </div>
                         <div className="min-w-[280px]">
@@ -625,7 +632,7 @@ export function ProfessorDashboard() {
                                 }}
                                 className="h-10 w-full rounded-xl border border-border-subtle bg-white px-4 text-xs font-semibold text-text-primary outline-none focus:border-indigo-500 transition"
                             >
-                                <option value="general">📊 Analise Geral (Todas as Planilhas)</option>
+                                <option value="general">📊 Análise Geral (Todas as Planilhas)</option>
                                 {spreadsheets.map((sheet) => (
                                     <option key={sheet.id} value={sheet.id}>
                                         📄 {sheet.filename} ({sheet.semester} - {sheet.course_name})
@@ -646,7 +653,7 @@ export function ProfessorDashboard() {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <h4 className="text-sm font-bold text-indigo-900 tracking-wide uppercase">
-                                            Analise Geral do Histórico
+                                            Análise Geral do Histórico
                                         </h4>
                                         <p className="text-xs text-text-secondary mt-0.5 leading-relaxed flex-wrap">
                                             As métricas abaixo consolidam os dados históricos importados via upload. Ao todo, foram extraídos <strong>{displayedTotalStudents} alunos</strong> e <strong>{displayedTotalSubjects} disciplinas/turmas</strong> de <strong>{workspace?.overview?.total_records || 0} registros</strong>.
@@ -661,7 +668,7 @@ export function ProfessorDashboard() {
                                         onClick={handleGenerateAiInsights}
                                         loading={aiLoading}
                                     >
-                                        {aiInsights ? 'Reanalisar Inteligência Geral' : 'Gerar Analise de Insights'}
+                                        {aiInsights ? 'Reanalisar Inteligência Geral' : 'Gerar Análise de Insights'}
                                     </Button>
                                 </div>
                             </div>
@@ -672,7 +679,7 @@ export function ProfessorDashboard() {
                                     <Card>
                                         <CardHeader
                                             title="Diretrizes e Insights de IA (Consolidado de Todas as Planilhas)"
-                                            subtitle="Analise pedagógica sistêmica baseada nos dados agregados do histórico acadêmico"
+                                            subtitle="Análise pedagógica sistêmica baseada nos dados agregados do histórico acadêmico"
                                             icon={BrainCircuit}
                                         />
                                         <div className="p-6 border-t border-border-subtle bg-bg-secondary/10 rounded-b-[24px]">
@@ -762,7 +769,7 @@ export function ProfessorDashboard() {
                                                         GPA: {item.gpa != null ? Number(item.gpa).toFixed(2) : '--'} | Freq: {item.attendance != null ? `${Number(item.attendance).toFixed(0)}%` : '--'}
                                                     </p>
                                                 </div>
-                                                <Badge variant={getRiskVariant(item.risk_level)}>{item.risk_level}</Badge>
+                                                <Badge variant={getRiskVariant(item.risk_level)}>{riskLabels[item.risk_level] || item.risk_level}</Badge>
                                             </Link>
                                         ))}
                                         {displayedCriticalClasses.length === 0 && (
@@ -845,7 +852,7 @@ export function ProfessorDashboard() {
                                                 <InlineMetric label="Presença" value={student.attendance_rate != null ? `${Number(student.attendance_rate).toFixed(0)}%` : '--'} />
                                                 <InlineMetric label="Risco" value={student.risk_score != null ? `${(Number(student.risk_score) * 100).toFixed(0)}%` : '--'} />
                                                 <div className="flex items-center lg:justify-end">
-                                                    <Badge variant={getRiskVariant(student.risk_level)}>{student.risk_level}</Badge>
+                                                    <Badge variant={getRiskVariant(student.risk_level)}>{riskLabels[student.risk_level] || student.risk_level}</Badge>
                                                 </div>
                                             </motion.div>
                                         ))}
@@ -866,7 +873,7 @@ export function ProfessorDashboard() {
                         <div className="space-y-6 animate-fade-in">
                             <Card>
                                 <CardHeader
-                                    title="Analise e Insights por Planilha Única"
+                                    title="Análise e Insights por Planilha Única"
                                     subtitle="Leitura de dicas de intervenção e indicadores específicos do arquivo selecionado"
                                     icon={Sparkles}
                                 />

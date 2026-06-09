@@ -72,7 +72,7 @@ export function ProfessorCourses() {
             setAvailableSubjects(uniqueSubjects);
             return uniqueSubjects;
         } catch (loadError) {
-            console.error('Erro ao carregar disciplinas disponiveis do curso', loadError);
+            console.error('Erro ao carregar disciplinas disponíveis do curso', loadError);
             setAvailableSubjects([]);
             throw loadError;
         } finally {
@@ -96,7 +96,7 @@ export function ProfessorCourses() {
                 }
             } catch (loadError) {
                 console.error('Erro ao carregar disciplinas do professor', loadError);
-                setError('Nao foi possivel carregar o escopo docente agora.');
+                setError('Não foi possível carregar o escopo docente agora.');
             } finally {
                 setLoading(false);
             }
@@ -133,7 +133,7 @@ export function ProfessorCourses() {
             const nextAcademicCourse = academicCourseOptions[0].name;
             setSelectedAcademicCourse(nextAcademicCourse);
             loadAvailableSubjects(nextAcademicCourse).catch(() => {
-                setError('Nao foi possivel carregar as disciplinas do curso selecionado.');
+                setError('Não foi possível carregar as disciplinas do curso selecionado.');
             });
         }
     }, [academicCourseOptions, selectedAcademicCourse]);
@@ -212,7 +212,7 @@ export function ProfessorCourses() {
         try {
             await loadAvailableSubjects(courseName);
         } catch {
-            setError('Nao foi possivel carregar as disciplinas do curso selecionado.');
+            setError('Não foi possível carregar as disciplinas do curso selecionado.');
         }
     };
 
@@ -228,12 +228,12 @@ export function ProfessorCourses() {
             }
             setSuccess(
                 refreshed.selected_course_ids?.length
-                    ? 'Disciplinas do seu curso salvas com sucesso. As proximas leituras do professor usarao apenas esse escopo.'
-                    : 'Nenhuma disciplina ficou selecionada. Voce pode marcar novamente as disciplinas do seu curso.'
+                    ? 'Disciplinas do seu curso salvas com sucesso. As próximas leituras do professor usarão apenas esse escopo.'
+                    : 'Nenhuma disciplina ficou selecionada. Você pode marcar novamente as disciplinas do seu curso.'
             );
         } catch (saveError) {
             console.error('Erro ao salvar disciplinas do professor', saveError);
-            setError(saveError.response?.data?.detail || 'Nao foi possivel salvar as disciplinas selecionadas.');
+            setError(saveError.response?.data?.detail || 'Não foi possível salvar as disciplinas selecionadas.');
         } finally {
             setSaving(false);
         }
@@ -250,8 +250,8 @@ export function ProfessorCourses() {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard title="Cursos salvos" value={academicCourseOptions.length} helper="Cursos academicos persistidos no seu perfil" icon={GraduationCap} tone="indigo" />
-                <MetricCard title="Disciplinas do curso" value={totalAvailableSubjects} helper="Elegiveis no curso selecionado" icon={BookOpen} tone="purple" />
+                <MetricCard title="Cursos salvos" value={academicCourseOptions.length} helper="Cursos acadêmicos persistidos no seu perfil" icon={GraduationCap} tone="indigo" />
+                <MetricCard title="Disciplinas do curso" value={totalAvailableSubjects} helper="Elegíveis no curso selecionado" icon={BookOpen} tone="purple" />
                 <MetricCard title="Disciplinas selecionadas" value={selectedSubjects.length} helper="Escopo docente salvo no seu perfil" icon={CheckCircle} tone="emerald" />
                 <MetricCard title="Alunos cobertos" value={totalSelectedStudents} helper="Contagem atual nas disciplinas escolhidas" icon={Users} tone="blue" />
             </div>
@@ -279,7 +279,7 @@ export function ProfessorCourses() {
                                                 : 'border-border-subtle dark:border-slate-800 bg-bg-card hover:border-border-hover hover:bg-bg-secondary/50'}`}
                                         >
                                             <p className="text-sm font-semibold text-text-primary">{course.name}</p>
-                                            <p className="mt-1 text-sm text-text-secondary">{course.selectedSubjects} disciplinas ja selecionadas • {course.students} alunos cobertos</p>
+                                            <p className="mt-1 text-sm text-text-secondary">{course.selectedSubjects} disciplinas já selecionadas • {course.students} alunos cobertos</p>
                                         </button>
                                     );
                                 })}
@@ -289,7 +289,7 @@ export function ProfessorCourses() {
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                     <div>
                                         <p className="text-sm font-semibold text-text-primary">2. Selecione apenas as disciplinas do curso {selectedAcademicCourse || 'escolhido'}</p>
-                                        <p className="mt-1 text-sm text-text-secondary">As opcoes abaixo pertencem ao curso salvo no seu perfil. Assim o professor nao ve disciplinas fora da sua area.</p>
+                                        <p className="mt-1 text-sm text-text-secondary">As opções abaixo pertencem ao curso salvo no seu perfil. Assim o professor não vê disciplinas fora da sua área.</p>
                                     </div>
                                     <div className="relative w-full md:max-w-xs">
                                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
@@ -321,16 +321,16 @@ export function ProfessorCourses() {
                                             >
                                                 <div>
                                                     <p className="text-sm font-semibold text-text-primary">{course.name}</p>
-                                                    <p className="mt-1 text-sm text-text-secondary">{course.code || 'Sem codigo institucional'} • {course.student_count || 0} alunos vinculados no momento</p>
+                                                    <p className="mt-1 text-sm text-text-secondary">{course.code || 'Sem código institucional'} • {course.student_count || 0} alunos vinculados no momento</p>
                                                     <div className="mt-2 flex flex-wrap gap-2">
                                                         {course.periods?.length ? course.periods.map((period) => (
-                                                            <Badge key={`${course.name}-${period}`} variant="neutral">{period}o periodo</Badge>
+                                                            <Badge key={`${course.name}-${period}`} variant="neutral">{period}º período</Badge>
                                                         )) : (
                                                             <Badge variant="neutral">Sem alunos sincronizados ainda</Badge>
                                                         )}
                                                     </div>
                                                 </div>
-                                                <Badge variant={isChecked ? 'success' : 'info'}>{isChecked ? 'Selecionada' : 'Disponivel'}</Badge>
+                                                <Badge variant={isChecked ? 'success' : 'info'}>{isChecked ? 'Selecionada' : 'Disponível'}</Badge>
                                             </button>
                                         );
                                     }) : (
@@ -347,7 +347,7 @@ export function ProfessorCourses() {
                         <EmptyState
                             icon={BookOpen}
                             title="Nenhum curso salvo no perfil"
-                            description="Primeiro salve os cursos em que voce leciona no perfil do professor. Depois, as disciplinas do curso aparecerao aqui para selecao."
+                            description="Primeiro salve os cursos em que você leciona no perfil do professor. Depois, as disciplinas do curso aparecerão aqui para seleção."
                             action={(
                                 <Link to={profileRoute}>
                                     <Button>Ir para meu perfil</Button>
@@ -360,7 +360,7 @@ export function ProfessorCourses() {
                 <Card>
                     <CardHeader
                         title="Resumo do escopo docente"
-                        subtitle="O curso continua salvo no perfil e aqui voce controla apenas as disciplinas que realmente leciona."
+                        subtitle="O curso continua salvo no perfil e aqui você controla apenas as disciplinas que realmente leciona."
                         icon={Users}
                         action={<Button icon={Save} loading={saving} onClick={handleSave}>Salvar escopo</Button>}
                     />
@@ -379,7 +379,7 @@ export function ProfessorCourses() {
                     <div className="space-y-4">
                         <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4 text-sm text-text-secondary">
                             <p className="font-semibold text-text-primary">Como a tela funciona agora</p>
-                            <p className="mt-2 leading-6">1. O curso do professor ja vem salvo desde o cadastro. 2. A NEXORA mostra somente as disciplinas elegiveis daquele curso. 3. O professor marca quais dessas disciplinas realmente leciona e salva o escopo.</p>
+                            <p className="mt-2 leading-6">1. O curso do professor já vem salvo desde o cadastro. 2. A NEXORA mostra somente as disciplinas elegíveis daquele curso. 3. O professor marca quais dessas disciplinas realmente leciona e salva o escopo.</p>
                         </div>
 
                         {selectedSubjects.length > 0 ? (
@@ -389,13 +389,13 @@ export function ProfessorCourses() {
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
                                                 <p className="text-sm font-semibold text-text-primary">{course.name}</p>
-                                                <p className="mt-1 text-sm text-text-secondary">{course.code || 'Sem codigo institucional'} • {course.academic_course_name || selectedAcademicCourse || 'Curso salvo no perfil'}</p>
+                                                <p className="mt-1 text-sm text-text-secondary">{course.code || 'Sem código institucional'} • {course.academic_course_name || selectedAcademicCourse || 'Curso salvo no perfil'}</p>
                                             </div>
                                             <Badge variant="info">{course.student_count || 0} alunos</Badge>
                                         </div>
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             {course.periods?.length ? course.periods.map((period) => (
-                                                <Badge key={`selected-${course.id}-${period}`} variant="neutral">{period}o periodo</Badge>
+                                                <Badge key={`selected-${course.id}-${period}`} variant="neutral">{period}º período</Badge>
                                             )) : (
                                                 <Badge variant="neutral">Sem alunos sincronizados ainda</Badge>
                                             )}
@@ -407,7 +407,7 @@ export function ProfessorCourses() {
                             <EmptyState
                                 icon={CheckCircle}
                                 title="Nenhuma disciplina selecionada"
-                                description="Escolha um curso salvo no seu perfil, marque as disciplinas que voce leciona e salve o escopo para o restante da plataforma usar apenas esse recorte."
+                                description="Escolha um curso salvo no seu perfil, marque as disciplinas que você leciona e salve o escopo para o restante da plataforma usar apenas esse recorte."
                             />
                         )}
                     </div>

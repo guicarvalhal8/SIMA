@@ -61,7 +61,7 @@ function EmptyState({ onGenerate, loading }) {
                 ) : (
                     <>
                         <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                        Gerar Analise com IA
+                        Gerar Análise com IA
                     </>
                 )}
             </button>
@@ -82,7 +82,7 @@ function ErrorState({ message, onRetry }) {
                 {isConfigError ? <WifiOff className="w-8 h-8 text-amber-400" /> : <AlertTriangle className="w-8 h-8 text-amber-400" />}
             </div>
             <h3 className="text-lg font-semibold text-gray-200 mb-2">
-                {isConfigError ? 'API Key não configurada' : 'Erro na analise'}
+                {isConfigError ? 'API Key não configurada' : 'Erro na análise'}
             </h3>
             <p className="text-gray-500 text-center max-w-md mb-6">{message}</p>
             {isConfigError ? (
@@ -250,7 +250,7 @@ export function AIInsights() {
             <div className="flex items-center justify-between">
                 <PageHeader
                     title="Insights IA"
-                    subtitle="Analise inteligente dos dados acadêmicos com Google Gemini"
+                    subtitle="Análise inteligente dos dados acadêmicos com Google Gemini"
                     icon={Sparkles}
                 />
                 {data && (
@@ -318,7 +318,7 @@ export function AIInsights() {
                                         <Sparkles className="w-6 h-6 text-purple-400" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-semibold text-gray-300 mb-2">Resumo da Analise</h3>
+                                        <h3 className="text-sm font-semibold text-gray-300 mb-2">Resumo da Análise</h3>
                                         <p className="text-gray-400 text-sm leading-relaxed">{data.summary}</p>
                                         {data.model && (
                                             <p className="text-gray-700 text-[10px] mt-3 uppercase tracking-wider">
@@ -391,7 +391,7 @@ export function AIInsights() {
             <div className="mt-8 pt-12 border-t border-white/5 pb-20">
                 <div className="flex items-center gap-2 mb-6">
                     <Zap className="w-5 h-5 text-amber-400" />
-                    <h3 className="text-sm font-semibold text-gray-300">Conversar com AI Consultant</h3>
+                    <h3 className="text-sm font-semibold text-gray-300">Conversar com o Consultor de IA</h3>
                 </div>
                 <AIChat />
             </div>
@@ -537,7 +537,7 @@ function AIChat({ data }) {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-purple-400 hover:border-purple-500/30 transition-all shadow-inner"
-                    title="Anexar arquivo para analise temporária"
+                    title="Anexar arquivo para análise temporária"
                 >
                     <Paperclip className="w-5 h-5" />
                 </button>

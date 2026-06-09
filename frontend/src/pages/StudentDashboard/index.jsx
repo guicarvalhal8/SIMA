@@ -26,6 +26,13 @@ import { Input } from '@/components/ui/Input';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 
+const riskLabels = {
+    low: 'Baixo',
+    medium: 'Médio',
+    high: 'Alto',
+    critical: 'Crítico',
+};
+
 export function StudentDashboard() {
     const { user } = useAuth();
     const [profile, setProfile] = useState(null);
@@ -220,8 +227,8 @@ export function StudentDashboard() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title={`Ola, ${profile?.name?.split(' ')[0] || user?.full_name?.split(' ')[0] || 'Aluno'}`}
-                subtitle="Acompanhe desempenho, risco academico e proximos passos em uma interface mais clara e objetiva."
+                title={`Olá, ${profile?.name?.split(' ')[0] || user?.full_name?.split(' ')[0] || 'Aluno'}`}
+                subtitle="Acompanhe desempenho, risco acadêmico e próximos passos em uma interface mais clara e objetiva."
                 icon={BookOpen}
                 actions={(
                     <>
@@ -244,12 +251,12 @@ export function StudentDashboard() {
                             <risk.icon className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Conexao com o portal academico</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Conexão com o portal acadêmico</p>
                             <h3 className="mt-2 text-lg font-semibold text-text-primary">
-                                {syncStatus === 'syncing' ? 'Atualizando dados no Lyceum' : syncStatus === 'done' ? 'Dados sincronizados com sucesso' : 'Sincronizacao pendente'}
+                                {syncStatus === 'syncing' ? 'Atualizando dados no Lyceum' : syncStatus === 'done' ? 'Dados sincronizados com sucesso' : 'Sincronização pendente'}
                             </h3>
                             <p className="mt-2 text-sm leading-6 text-text-secondary">
-                                {lastSyncAt ? `Ultima sincronizacao em ${formatDate(lastSyncAt)}.` : 'Nenhuma sincronizacao concluida ate o momento.'}
+                                {lastSyncAt ? `Última sincronização em ${formatDate(lastSyncAt)}.` : 'Nenhuma sincronização concluída até o momento.'}
                                 {syncError ? ` ${syncError}` : ''}
                             </p>
                         </div>
@@ -266,17 +273,17 @@ export function StudentDashboard() {
             </Card>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard title="Disciplinas" value={grades?.total_disciplinas || 0} icon={BookOpen} tone="blue" helper="Componentes acompanhados no periodo" />
-                <MetricCard title="Media geral" value={Number(gpa || 0).toFixed(1)} icon={TrendingUp} tone="emerald" helper="Desempenho consolidado do semestre" />
-                <MetricCard title={"Frequ\u00eancia"} value={`${Number(attendanceRate || 0).toFixed(0)}%`} icon={Calendar} tone="amber" helper="Presen\u00e7a m\u00e9dia nas disciplinas" />
-                <MetricCard title="Risco academico" value={risk.shortLabel} icon={risk.icon} tone={risk.metricTone} helper="Classificacao atual da jornada" />
+                <MetricCard title="Disciplinas" value={grades?.total_disciplinas || 0} icon={BookOpen} tone="blue" helper="Componentes acompanhados no período" />
+                <MetricCard title="Média geral" value={Number(gpa || 0).toFixed(1)} icon={TrendingUp} tone="emerald" helper="Desempenho consolidado do semestre" />
+                <MetricCard title="Frequência" value={`${Number(attendanceRate || 0).toFixed(0)}%`} icon={Calendar} tone="amber" helper="Presença média nas disciplinas" />
+                <MetricCard title="Risco acadêmico" value={risk.shortLabel} icon={risk.icon} tone={risk.metricTone} helper="Classificação atual da jornada" />
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                 <Card>
                     <CardHeader
                         title="Leitura inteligente da jornada"
-                        subtitle="Resumo gerado a partir do seu historico academico mais recente"
+                        subtitle="Resumo gerado a partir do seu histórico acadêmico mais recente"
                         icon={Sparkles}
                         action={<Button variant="ghost" size="sm" icon={RefreshCw} onClick={fetchAiInsights} loading={loadingInsights}>Atualizar</Button>}
                     />
@@ -284,23 +291,23 @@ export function StudentDashboard() {
                     {loadingInsights ? (
                         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-[22px] border border-dashed border-border-subtle bg-bg-secondary/40">
                             <div className="h-9 w-9 animate-spin rounded-full border-2 border-accent-purple border-t-transparent" />
-                            <p className="text-sm text-text-secondary">A NEXORA esta sintetizando seus dados academicos.</p>
+                            <p className="text-sm text-text-secondary">A NEXORA está sintetizando seus dados acadêmicos.</p>
                         </div>
                     ) : aiInsights && !aiInsights.error ? (
                         <div className="space-y-5">
                             <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-5">
-                                <p className="text-sm leading-7 text-text-primary">{aiInsights.summary || 'Sem resumo disponivel no momento.'}</p>
+                                <p className="text-sm leading-7 text-text-primary">{aiInsights.summary || 'Sem resumo disponível no momento.'}</p>
                             </div>
 
                             <InsightGroup title="Pontos fortes" icon={CheckCircle} tone="success" items={aiInsights.strengths} />
-                            <InsightGroup title="Pontos de atencao" icon={AlertTriangle} tone="warning" items={aiInsights.alerts} />
+                            <InsightGroup title="Pontos de atenção" icon={AlertTriangle} tone="warning" items={aiInsights.alerts} />
                             <InsightGroup title="Dicas de estudo" icon={Lightbulb} tone="info" items={aiInsights.study_tips} />
                         </div>
                     ) : (
                         <EmptyState
                             icon={Sparkles}
-                            title="Ainda nao ha insights gerados"
-                            description="Gere a primeira leitura automatica para destacar avancos, riscos e estrategias recomendadas."
+                            title="Ainda não há insights gerados"
+                            description="Gere a primeira leitura automática para destacar avanços, riscos e estratégias recomendadas."
                             action={<Button onClick={fetchAiInsights}>Gerar insight</Button>}
                         />
                     )}
@@ -310,7 +317,7 @@ export function StudentDashboard() {
                     <Card>
                         <CardHeader
                             title="Prioridades do momento"
-                            subtitle="Acoes sugeridas para organizar sua rotina"
+                            subtitle="Ações sugeridas para organizar sua rotina"
                             icon={Shield}
                         />
                         <div className="space-y-3">
@@ -319,21 +326,21 @@ export function StudentDashboard() {
                                     <div className="flex items-center justify-between gap-3">
                                         <p className="text-sm font-semibold text-text-primary">{rec.title}</p>
                                         <Badge variant={rec.priority === 'critical' ? 'danger' : rec.priority === 'high' ? 'warning' : 'info'}>
-                                            {rec.priority}
+                                            {riskLabels[rec.priority] || rec.priority}
                                         </Badge>
                                     </div>
                                     <p className="mt-2 text-sm leading-6 text-text-secondary">{rec.message}</p>
                                 </div>
                             )) : (
                                 <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/50 p-4 text-sm text-text-secondary">
-                                    Nenhuma recomendacao critica no momento. Continue acompanhando seu desempenho regularmente.
+                                    Nenhuma recomendação crítica no momento. Continue acompanhando seu desempenho regularmente.
                                 </div>
                             )}
                         </div>
                     </Card>
 
                     <Card>
-                        <CardHeader title="Agenda academica" subtitle="Referencias rapidas do seu contexto atual" icon={Clock} />
+                        <CardHeader title="Agenda acadêmica" subtitle="Referências rápidas do seu contexto atual" icon={Clock} />
                         {scheduleItems.length > 0 ? (
                             <div className="space-y-3">
                                 {scheduleItems.slice(0, 4).map((item, index) => (
@@ -342,20 +349,20 @@ export function StudentDashboard() {
                                             {item.disciplina || item.course_name || item.name || 'Disciplina'}
                                         </p>
                                         <p className="mt-1 text-sm text-text-secondary">
-                                            {item.horario || item.time || item.schedule || item.turno || 'Horario nao informado'}
+                                            {item.horario || item.time || item.schedule || item.turno || 'Horário não informado'}
                                         </p>
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <div className="rounded-[22px] border border-dashed border-border-subtle bg-bg-secondary/40 p-5 text-sm text-text-secondary">
-                                O horario de aulas ainda nao foi sincronizado para exibicao neste painel.
+                                O horário de aulas ainda não foi sincronizado para exibição neste painel.
                             </div>
                         )}
                     </Card>
 
                     <Card>
-                        <CardHeader title="Atenção a frequencia" subtitle="Limite de 20 faltas por disciplina e 4 faltas por dia completo" icon={Calendar} />
+                        <CardHeader title="Atenção à frequência" subtitle="Limite de 20 faltas por disciplina e 4 faltas por dia completo" icon={Calendar} />
                         <div className="space-y-3">
                             {flaggedAttendance.length > 0 ? flaggedAttendance.map((item) => (
                                 <div key={item.disciplina} className="rounded-[20px] border border-border-subtle bg-bg-secondary/45 p-4">
@@ -377,7 +384,7 @@ export function StudentDashboard() {
                                 </div>
                             )) : (
                                 <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/45 p-4 text-sm text-success">
-                                    Sua frequencia esta em margem segura nas disciplinas monitoradas.
+                                    Sua frequência está em margem segura nas disciplinas monitoradas.
                                 </div>
                             )}
                         </div>
@@ -386,7 +393,7 @@ export function StudentDashboard() {
             </div>
 
             <Card>
-                <CardHeader title="Notas por disciplina" subtitle="Visao detalhada das avaliacoes lancadas no periodo" icon={BookOpen} />
+                <CardHeader title="Notas por disciplina" subtitle="Visão detalhada das avaliações lançadas no período" icon={BookOpen} />
                 {grades?.grades?.length > 0 ? (
                     <div className="table-shell overflow-x-auto">
                         <table className="min-w-full text-sm">
@@ -396,8 +403,8 @@ export function StudentDashboard() {
                                     <th className="px-6 py-4 text-center font-semibold">VA1</th>
                                     <th className="px-6 py-4 text-center font-semibold">VA2</th>
                                     <th className="px-6 py-4 text-center font-semibold">VA3</th>
-                                    <th className="px-6 py-4 text-center font-semibold">Media</th>
-                                    <th className="px-6 py-4 text-center font-semibold">Situacao</th>
+                                    <th className="px-6 py-4 text-center font-semibold">Média</th>
+                                    <th className="px-6 py-4 text-center font-semibold">Situação</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -428,13 +435,13 @@ export function StudentDashboard() {
                     <EmptyState
                         icon={BookOpen}
                         title="Sem notas sincronizadas"
-                        description="Sincronize seus dados do Lyceum para visualizar notas e situacao de cada disciplina."
+                        description="Sincronize seus dados do Lyceum para visualizar notas e situação de cada disciplina."
                     />
                 )}
             </Card>
 
             <Card>
-                <CardHeader title={"Frequ\u00eancia por disciplina"} subtitle="Presen\u00e7a acumulada e faltas registradas no per\u00edodo" icon={Calendar} />
+                <CardHeader title="Frequência por disciplina" subtitle="Presença acumulada e faltas registradas no período" icon={Calendar} />
                 {attendance?.attendance?.length > 0 ? (
                     <div className="space-y-3">
                         {attendance.attendance.map((item, index) => (
@@ -462,8 +469,8 @@ export function StudentDashboard() {
                 ) : (
                     <EmptyState
                         icon={Calendar}
-                        title="Sem frequencia disponivel"
-                        description="A frequencia sera exibida aqui apos a sincronizacao do seu portal academico."
+                        title="Sem frequência disponível"
+                        description="A frequência será exibida aqui após a sincronização do seu portal acadêmico."
                     />
                 )}
             </Card>
@@ -487,7 +494,7 @@ export function StudentDashboard() {
                             <Card className="shadow-card-hover">
                                 <CardHeader
                                     title="Configurar acesso ao Lyceum"
-                                    subtitle="Informe a senha do portal academico para liberar a sincronizacao automatica de notas, frequencias e horario."
+                                    subtitle="Informe a senha do portal acadêmico para liberar a sincronização automática de notas, frequências e horário."
                                     icon={Lock}
                                 />
                                 <div className="space-y-5">
@@ -501,7 +508,7 @@ export function StudentDashboard() {
                                     />
 
                                     <div className="rounded-[20px] border border-border-subtle bg-bg-secondary/45 p-4 text-sm leading-6 text-text-secondary">
-                                        Seus dados sao usados apenas para sincronizar informacoes academicas dentro da NEXORA.
+                                        Seus dados são usados apenas para sincronizar informações acadêmicas dentro da NEXORA.
                                     </div>
 
                                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
@@ -570,11 +577,11 @@ function StatusChip({ icon: Icon, tone, label }) {
 function getRiskConfig(level) {
     switch (level) {
         case 'critical':
-            return { label: 'Risco critico', shortLabel: 'Critico', wrapper: 'bg-danger/10 text-danger', badge: 'danger', metricTone: 'rose', icon: AlertTriangle };
+            return { label: 'Risco crítico', shortLabel: 'Crítico', wrapper: 'bg-danger/10 text-danger', badge: 'danger', metricTone: 'rose', icon: AlertTriangle };
         case 'high':
             return { label: 'Risco alto', shortLabel: 'Alto', wrapper: 'bg-warning/10 text-warning', badge: 'warning', metricTone: 'amber', icon: AlertTriangle };
         case 'medium':
-            return { label: 'Risco moderado', shortLabel: 'Moderado', wrapper: 'bg-accent-blue/10 text-accent-blue', badge: 'info', metricTone: 'blue', icon: Info };
+            return { label: 'Risco moderado', shortLabel: 'Médio', wrapper: 'bg-accent-blue/10 text-accent-blue', badge: 'info', metricTone: 'blue', icon: Info };
         default:
             return { label: 'Risco controlado', shortLabel: 'Controlado', wrapper: 'bg-success/10 text-success', badge: 'success', metricTone: 'emerald', icon: CheckCircle };
     }
@@ -610,8 +617,8 @@ function buildAttendanceAlert(item) {
 
     const label = `${absences}/${MAX_ABSENCES_PER_SUBJECT} faltas`;
     const summary = remainingAbsences === 0
-        ? 'Voce atingiu o limite de faltas da disciplina.'
-        : `${remainingAbsences} faltas restantes ate o limite, cerca de ${remainingFullDays} dia${remainingFullDays === 1 ? '' : 's'} completo${remainingFullDays === 1 ? '' : 's'} de margem.`;
+        ? 'Você atingiu o limite de faltas da disciplina.'
+        : `${remainingAbsences} faltas restantes até o limite, cerca de ${remainingFullDays} dia${remainingFullDays === 1 ? '' : 's'} completo${remainingFullDays === 1 ? '' : 's'} de margem.`;
 
     return {
         ...item,
@@ -644,7 +651,7 @@ function formatAttendanceSummary(item) {
         return `${totalClasses} aulas registradas no portal`;
     }
 
-    return 'Presen\u00e7a sincronizada do portal acad\u00e9mico';
+    return 'Presença sincronizada do portal acadêmico';
 }
 
 function getGradeColor(value) {

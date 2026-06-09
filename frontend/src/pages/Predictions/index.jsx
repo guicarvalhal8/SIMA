@@ -85,6 +85,13 @@ const priorityConfig = {
     },
 };
 
+const priorityLabels = {
+    critical: 'Crítica',
+    high: 'Alta',
+    medium: 'Média',
+    low: 'Baixa',
+};
+
 /* ─── Predictions Page ─── */
 export function Predictions() {
     const [predictions, setPredictions] = useState([]);
@@ -212,7 +219,7 @@ export function Predictions() {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2.5 mb-1.5">
                                         <Badge variant={config.badge}>
-                                            {rec.priority}
+                                            {priorityLabels[rec.priority] || rec.priority}
                                         </Badge>
                                         <p className="font-semibold text-gray-200 text-sm">{rec.title}</p>
                                     </div>

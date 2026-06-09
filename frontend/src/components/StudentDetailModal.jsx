@@ -17,12 +17,19 @@ import api from '@/services/api';
 import { Badge } from '@/components/ui/Badge';
 
 const TAB_ITEMS = [
-    { id: 'overview', label: 'Visao geral', icon: TrendingUp },
+    { id: 'overview', label: 'Visão geral', icon: TrendingUp },
     { id: 'grades', label: 'Notas', icon: Award },
-    { id: 'attendance', label: 'Frequencia', icon: Clock },
+    { id: 'attendance', label: 'Frequência', icon: Clock },
     { id: 'subjects', label: 'Disciplinas', icon: BookOpen },
-    { id: 'schedule', label: 'Horarios', icon: CalendarRange },
+    { id: 'schedule', label: 'Horários', icon: CalendarRange },
 ];
+
+const priorityLabels = {
+    critical: 'Crítico',
+    high: 'Alto',
+    medium: 'Médio',
+    low: 'Baixo'
+};
 
 export function StudentDetailModal({ studentId, isOpen, onClose }) {
     const [data, setData] = useState(null);
@@ -39,7 +46,7 @@ export function StudentDetailModal({ studentId, isOpen, onClose }) {
                 .then((response) => setData(response.data))
                 .catch((requestError) => {
                     console.error('Erro ao buscar detalhes do aluno', requestError);
-                    setError(requestError.response?.data?.detail || 'Nao foi possivel carregar os dados do aluno.');
+                    setError(requestError.response?.data?.detail || 'Não foi possível carregar os dados do aluno.');
                 })
                 .finally(() => setLoading(false));
         }
@@ -114,17 +121,17 @@ export function StudentDetailModal({ studentId, isOpen, onClose }) {
                                                 <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
                                                     <span>{data.student.registration_number}</span>
                                                     <span>{data.student.course_name || '--'}</span>
-                                                    <span>{data.student.current_period ? `${data.student.current_period}o periodo` : 'Periodo nao informado'}</span>
+                                                    <span>{data.student.current_period ? `${data.student.current_period}º período` : 'Período não informado'}</span>
                                                 </div>
                                                 <div className="mt-3 flex flex-wrap gap-2">
                                                     <Badge variant={getRiskBadgeVariant(kpis.risk_level)} dot>
                                                         {formatRiskLabel(kpis.risk_level)}
                                                     </Badge>
                                                     <Badge variant="info">
-                                                        {data.student.class_schedule || 'Turno nao informado'}
+                                                        {data.student.class_schedule === 'MORNING' ? 'Matutino' : data.student.class_schedule === 'NIGHT' ? 'Noturno' : data.student.class_schedule === 'INTEGRAL' ? 'Integral' : (data.student.class_schedule || 'Turno não informado')}
                                                     </Badge>
                                                     <Badge variant={data.student.sync_status === 'done' ? 'success' : data.student.sync_status === 'error' ? 'danger' : 'neutral'}>
-                                                        Sync {data.student.sync_status || 'indisponivel'}
+                                                        Sincronização: {data.student.sync_status === 'done' ? 'Concluída' : data.student.sync_status === 'error' ? 'Erro' : 'Indisponível'}
                                                     </Badge>
                                                 </div>
                                             </div>
@@ -141,8 +148,8 @@ export function StudentDetailModal({ studentId, isOpen, onClose }) {
 
                                     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                                         <QuickStat label="Disciplinas" value={headerStats.subjects} icon={BookOpen} />
-                                        <QuickStat label="Media geral" value={headerStats.avgGrade} icon={TrendingUp} />
-                                        <QuickStat label="Frequencia" value={headerStats.avgAttendance} icon={Clock} />
+                                        <QuickStat label="Média geral" value={headerStats.avgGrade} icon={TrendingUp} />
+                                        <QuickStat label="Frequência" value={headerStats.avgAttendance} icon={Clock} />
                                         <QuickStat label="Risco" value={headerStats.riskScore} icon={ShieldAlert} />
                                     </div>
                                 </div>
@@ -171,7 +178,7 @@ export function StudentDetailModal({ studentId, isOpen, onClose }) {
                                     ))}
                                 </div>
                             ) : error ? (
-                                <EmptyPanel icon={ShieldAlert} title="Nao foi possivel abrir o aluno" description={error} />
+                                <EmptyPanel icon={ShieldAlert} title="Não foi possível abrir o aluno" description={error} />
                             ) : (
                                 <>
                                     {activeTab === 'overview' && (
@@ -233,16 +240,16 @@ function OverviewTab({ student, kpis, history, recommendations }) {
                         <p className="text-sm font-semibold text-text-primary">Dados do aluno</p>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <InfoLine icon={User} label="Matricula" value={student?.registration_number} />
+                        <InfoLine icon={User} label="Matrícula" value={student?.registration_number} />
                         <InfoLine icon={GraduationCap} label="Curso" value={student?.course_name} />
-                        <InfoLine icon={CalendarRange} label="Periodo atual" value={student?.current_period ? `${student.current_period}o periodo` : '--'} />
-                        <InfoLine icon={Clock} label="Turno" value={student?.class_schedule} />
+                        <InfoLine icon={CalendarRange} label="Período atual" value={student?.current_period ? `${student.current_period}º período` : '--'} />
+                        <InfoLine icon={Clock} label="Turno" value={student?.class_schedule === 'MORNING' ? 'Matutino' : student?.class_schedule === 'NIGHT' ? 'Noturno' : student?.class_schedule === 'INTEGRAL' ? 'Integral' : (student?.class_schedule || '--')} />
                         <InfoLine icon={CalendarRange} label="Ingresso" value={formatDate(student?.enrollment_date)} />
-                        <InfoLine icon={CheckCircle2} label="Status" value={student?.status} />
+                        <InfoLine icon={CheckCircle2} label="Status" value={student?.status === 'ACTIVE' ? 'Ativo' : student?.status === 'INACTIVE' ? 'Inativo' : (student?.status || '--')} />
                         <InfoLine
                             icon={ShieldAlert}
                             label="Trabalho"
-                            value={student?.is_working ? (student?.work_schedule ? `Sim • ${student.work_schedule}` : 'Sim') : 'Nao'}
+                            value={student?.is_working ? (student?.work_schedule ? `Sim • ${student.work_schedule}` : 'Sim') : 'Não'}
                         />
                     </div>
                 </div>
@@ -250,13 +257,13 @@ function OverviewTab({ student, kpis, history, recommendations }) {
                 <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
                     <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-accent-purple" />
-                        <p className="text-sm font-semibold text-text-primary">Indicadores estatisticos</p>
+                        <p className="text-sm font-semibold text-text-primary">Indicadores estatísticos</p>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         <MetricMini label="GPA" value={Number(kpis.gpa || 0).toFixed(2)} />
-                        <MetricMini label="Frequencia" value={`${Number(kpis.attendance_rate || 0).toFixed(0)}%`} />
-                        <MetricMini label="Reprovacoes" value={kpis.failures ?? 0} />
-                        <MetricMini label="Tendencia" value={formatTrend(kpis.grade_trend)} />
+                        <MetricMini label="Frequência" value={`${Number(kpis.attendance_rate || 0).toFixed(0)}%`} />
+                        <MetricMini label="Reprovações" value={kpis.failures ?? 0} />
+                        <MetricMini label="Tendência" value={formatTrend(kpis.grade_trend)} />
                     </div>
                 </div>
             </div>
@@ -265,7 +272,7 @@ function OverviewTab({ student, kpis, history, recommendations }) {
                 <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
                     <div className="flex items-center gap-2">
                         <Award className="h-4 w-4 text-accent-blue" />
-                        <p className="text-sm font-semibold text-text-primary">Historico sintetico</p>
+                        <p className="text-sm font-semibold text-text-primary">Histórico sintético</p>
                     </div>
                     {history?.length ? (
                         <div className="mt-4 space-y-3">
@@ -284,21 +291,23 @@ function OverviewTab({ student, kpis, history, recommendations }) {
                             ))}
                         </div>
                     ) : (
-                        <EmptyInline text="Nenhum historico de notas encontrado." />
+                        <EmptyInline text="Nenhum histórico de notas encontrado." />
                     )}
                 </div>
 
                 <div className="rounded-[24px] border border-border-subtle bg-bg-secondary/40 p-5">
                     <div className="flex items-center gap-2">
                         <ShieldAlert className="h-4 w-4 text-accent-purple" />
-                        <p className="text-sm font-semibold text-text-primary">Recomendacoes academicas</p>
+                        <p className="text-sm font-semibold text-text-primary">Recomendações acadêmicas</p>
                     </div>
                     {recommendations?.length ? (
                         <div className="mt-4 space-y-3">
                             {recommendations.map((item, index) => (
                                 <div key={`${item.title}-${index}`} className="rounded-2xl bg-white px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <Badge variant={mapPriorityToBadge(item.priority)}>{item.priority || 'prioridade'}</Badge>
+                                        <Badge variant={mapPriorityToBadge(item.priority)}>
+                                            {priorityLabels[item.priority] || item.priority || 'Prioridade'}
+                                        </Badge>
                                         <p className="text-sm font-semibold text-text-primary">{item.title}</p>
                                     </div>
                                     <p className="mt-2 text-sm leading-6 text-text-secondary">{item.message}</p>
@@ -306,7 +315,7 @@ function OverviewTab({ student, kpis, history, recommendations }) {
                             ))}
                         </div>
                     ) : (
-                        <EmptyInline text="Sem recomendacoes adicionais para este aluno no momento." />
+                        <EmptyInline text="Sem recomendações adicionais para este aluno no momento." />
                     )}
                 </div>
             </div>
@@ -405,7 +414,7 @@ function AttendanceTab({ attendance }) {
 
 function SubjectsTab({ subjects }) {
     if (!subjects.length) {
-        return <EmptyPanel icon={BookOpen} title="Nenhuma disciplina encontrada" description="As disciplinas do aluno aparecerao aqui quando houver sincronizacao ou vinculo academico." />;
+        return <EmptyPanel icon={BookOpen} title="Nenhuma disciplina encontrada" description="As disciplinas do aluno aparecerão aqui quando houver sincronização ou vínculo acadêmico." />;
     }
 
     return (
@@ -421,15 +430,15 @@ function SubjectsTab({ subjects }) {
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-sm font-semibold text-text-primary">{subject.disciplina}</p>
-                            <p className="mt-1 text-sm text-text-secondary">{subject.docente || 'Docente nao informado'}</p>
+                            <p className="mt-1 text-sm text-text-secondary">{subject.docente || 'Docente não informado'}</p>
                         </div>
                         <Badge variant={subject.situacao === 'Aprovado' || subject.situacao === 'Matriculado' ? 'success' : 'warning'}>
                             {subject.situacao || 'Em andamento'}
                         </Badge>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <InfoTile label="Periodo" value={subject.periodo} />
-                        <InfoTile label="Inicio" value={subject.data_inicial} />
+                        <InfoTile label="Período" value={subject.periodo} />
+                        <InfoTile label="Início" value={subject.data_inicial} />
                     </div>
                 </motion.div>
             ))}
@@ -439,7 +448,7 @@ function SubjectsTab({ subjects }) {
 
 function ScheduleTab({ schedule }) {
     if (!schedule.length) {
-        return <EmptyPanel icon={CalendarRange} title="Nenhum horario encontrado" description="O quadro de horarios sera exibido aqui quando o aluno tiver dados sincronizados." />;
+        return <EmptyPanel icon={CalendarRange} title="Nenhum horário encontrado" description="O quadro de horários será exibido aqui quando o aluno tiver dados sincronizados." />;
     }
 
     return (
@@ -459,7 +468,7 @@ function ScheduleTab({ schedule }) {
                         </div>
                         <Badge variant="info">{item.local || 'Sem sala'}</Badge>
                     </div>
-                    <p className="mt-3 text-sm text-text-secondary">Professor: {item.professor || 'Nao informado'}</p>
+                    <p className="mt-3 text-sm text-text-secondary">Professor: {item.professor || 'Não informado'}</p>
                 </motion.div>
             ))}
         </div>
@@ -546,7 +555,7 @@ function getRiskBadgeVariant(level) {
 }
 
 function formatRiskLabel(level) {
-    if (level === 'critical') return 'Risco critico';
+    if (level === 'critical') return 'Risco crítico';
     if (level === 'high') return 'Risco alto';
     if (level === 'medium') return 'Risco moderado';
     return 'Risco controlado';

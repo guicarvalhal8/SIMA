@@ -86,15 +86,15 @@ export function ProfessorRegister() {
         setError('');
 
         if (!form.registration_code || form.registration_code.length !== 5) {
-            setError('O codigo de matricula deve ter exatamente 5 digitos.');
+            setError('O código de matrícula deve ter exatamente 5 dígitos.');
             return;
         }
         if (!form.password || form.password.length < 6) {
-            setError('A senha deve ter no minimo 6 caracteres.');
+            setError('A senha deve ter no mínimo 6 caracteres.');
             return;
         }
         if (form.password !== form.confirmPassword) {
-            setError('As senhas nao coincidem.');
+            setError('As senhas não coincidem.');
             return;
         }
         if (!form.name || form.name.trim().length < 2) {
@@ -102,15 +102,15 @@ export function ProfessorRegister() {
             return;
         }
         if (!isValidEmail(form.email)) {
-            setError('Informe um e-mail valido com @.');
+            setError('Informe um e-mail válido com @.');
             return;
         }
         if (form.phone && !isValidPhone(form.phone)) {
-            setError('Informe um celular apenas com numeros e 10 ou 11 digitos.');
+            setError('Informe um celular apenas com números e 10 ou 11 dígitos.');
             return;
         }
         if (form.academic_courses.length === 0) {
-            setError('Selecione ao menos um curso academico.');
+            setError('Selecione ao menos um curso acadêmico.');
             return;
         }
 
@@ -134,7 +134,7 @@ export function ProfessorRegister() {
             setError(
                 message ||
                 (err.request
-                    ? 'Nao foi possivel conectar ao backend. Verifique se a API esta rodando em http://127.0.0.1:8000.'
+                    ? 'Não foi possível conectar ao backend. Verifique se a API está rodando em http://127.0.0.1:8000.'
                     : 'Erro ao cadastrar. Tente novamente.')
             );
         } finally {
@@ -145,8 +145,8 @@ export function ProfessorRegister() {
     if (success) {
         return (
             <AuthSuccessState
-                title="Cadastro de professor concluido"
-                description="Sua conta foi criada. Suas disciplinas selecionadas ja estao atreladas ao seu perfil para monitoramento e analises academicas."
+                title="Cadastro de professor concluído"
+                description="Sua conta foi criada. Suas disciplinas selecionadas já estão atreladas ao seu perfil para monitoramento e análises acadêmicas."
                 onAction={() => navigate('/login')}
             />
         );
@@ -160,7 +160,7 @@ export function ProfessorRegister() {
         <AuthLayout>
             <AuthCard
                 title="Cadastro de Professor"
-                subtitle="Informe seus dados institucionais e os cursos que voce acompanha."
+                subtitle="Informe seus dados institucionais e os cursos que você acompanha."
                 icon={BookOpen}
                 tone="professor"
             >
@@ -169,7 +169,7 @@ export function ProfessorRegister() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Input
-                            label="Codigo de matricula"
+                            label="Código de matrícula"
                             placeholder="Ex: 20001"
                             icon={Hash}
                             value={form.registration_code}
@@ -184,7 +184,7 @@ export function ProfessorRegister() {
                         <Input
                             label="Senha"
                             type="password"
-                            placeholder="Minimo de 6 caracteres"
+                            placeholder="Mínimo de 6 caracteres"
                             icon={Lock}
                             value={form.password}
                             onChange={(event) => updateField('password', event.target.value)}
@@ -219,17 +219,17 @@ export function ProfessorRegister() {
                             value={form.email}
                             onChange={(event) => updateField('email', event.target.value)}
                             required
-                            description="Obrigatorio informar um e-mail valido com @."
+                            description="Obrigatório informar um e-mail válido com @."
                         />
                         <Input
                             label="Celular"
-                            placeholder="Somente numeros"
+                            placeholder="Somente números"
                             icon={Phone}
                             value={form.phone}
                             onChange={(event) => updateField('phone', digitsOnly(event.target.value, 11))}
                             inputMode="numeric"
                             maxLength={11}
-                            description="Digite apenas numeros, com 10 ou 11 digitos."
+                            description="Digite apenas números, com 10 ou 11 dígitos."
                         />
                     </div>
 
@@ -239,9 +239,9 @@ export function ProfessorRegister() {
                                 <Briefcase className="h-4 w-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-text-primary">Disciplinas lecionadas por voce</p>
+                                <p className="text-sm font-semibold text-text-primary">Disciplinas lecionadas por você</p>
                                 <p className="mt-1 text-sm leading-6 text-text-secondary">
-                                    Voce pode escolher as disciplinas especificas que voce leciona no cadastro e tambem edita-las depois no seu painel de perfil.
+                                    Você pode escolher as disciplinas específicas que você leciona no cadastro e também editá-las depois no seu painel de perfil.
                                 </p>
                             </div>
                         </div>
@@ -249,7 +249,7 @@ export function ProfessorRegister() {
 
                     <div className="relative">
                         <label className="mb-2 block text-sm font-semibold text-text-secondary">
-                            Cursos em que voce leciona
+                            Cursos em que você leciona
                         </label>
 
                         {form.academic_courses.length > 0 ? (
@@ -278,7 +278,7 @@ export function ProfessorRegister() {
                             value={courseSearch}
                             onChange={(event) => setCourseSearch(event.target.value)}
                             onFocus={() => setShowCourseDropdown(true)}
-                            description="Esses cursos definem o universo de alunos e disciplinas que a NEXORA vinculara ao seu perfil."
+                            description="Esses cursos definem o universo de alunos e disciplinas que a NEXORA vinculará ao seu perfil."
                         />
 
                         {showCourseDropdown ? (

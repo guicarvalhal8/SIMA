@@ -79,7 +79,7 @@ export function ProfessorProfile() {
             setLinkedSubjects(uniqueSubjects);
             return uniqueSubjects;
         } catch (loadError) {
-            console.error('Erro ao carregar disciplinas elegiveis do professor', loadError);
+            console.error('Erro ao carregar disciplinas elegíveis do professor', loadError);
             setLinkedSubjects([]);
             return [];
         }
@@ -136,13 +136,13 @@ export function ProfessorProfile() {
         const trimmedPhone = form.phone.trim();
 
         if (academicCourses.length === 0) {
-            setError('Selecione ao menos um curso academico.');
+            setError('Selecione ao menos um curso acadêmico.');
             setSaving(false);
             return;
         }
 
         if (trimmedEmail && !trimmedEmail.includes('@')) {
-            setError('Informe um e-mail valido com @ ou deixe o campo em branco.');
+            setError('Informe um e-mail válido com @ ou deixe o campo em branco.');
             setSaving(false);
             return;
         }
@@ -175,7 +175,7 @@ export function ProfessorProfile() {
             });
             setAcademicCourses(refreshedAcademicCourses);
             await loadLinkedSubjects(refreshedAcademicCourses);
-            setSuccess('Cursos do professor salvos com sucesso. As disciplinas elegiveis do seu curso ja foram atualizadas.');
+            setSuccess('Cursos do professor salvos com sucesso. As disciplinas elegíveis do seu curso já foram atualizadas.');
         } catch (err) {
             setError(err.response?.data?.detail || 'Erro ao atualizar perfil.');
         } finally {
@@ -190,8 +190,10 @@ export function ProfessorProfile() {
             </div>
         );
     }
-    let filteredCourses = [];
-    let linkedSubjectsPreview = [];
+    const filteredCourses = availableCourses
+        .filter((course) => normalizeText(course).includes(normalizeText(courseSearch)))
+        .filter((course) => !academicCourses.some((selected) => normalizeText(selected) === normalizeText(course)));
+    const linkedSubjectsPreview = linkedSubjects;
 
     return (
         <motion.div
@@ -202,7 +204,7 @@ export function ProfessorProfile() {
         >
             <PageHeader
                 title="Meu perfil"
-                subtitle="Atualize seus dados e mantenha salvos os cursos academicos que definem as disciplinas elegiveis do seu painel."
+                subtitle="Atualize seus dados e mantenha salvos os cursos acadêmicos que definem as disciplinas elegíveis do seu painel."
                 icon={UserCircle}
             />
 
@@ -211,7 +213,7 @@ export function ProfessorProfile() {
                     <Card className="p-6">
                         <h3 className="mb-5 flex items-center gap-2 text-lg font-semibold text-text-primary">
                             <User className="h-5 w-5 text-accent-purple-light" />
-                            Informacoes basicas
+                            Informações básicas
                         </h3>
                         <div className="space-y-4">
                             <Input label="Nome completo" value={form.name} onChange={(event) => updateField('name', event.target.value)} icon={User} placeholder="Seu nome" />
@@ -223,10 +225,10 @@ export function ProfessorProfile() {
                     <Card className="p-6">
                         <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-text-primary">
                             <GraduationCap className="h-5 w-5 text-accent-blue-light" />
-                            Cursos em que voce leciona
+                            Cursos em que você leciona
                         </h3>
                         <p className="mb-4 text-sm text-text-secondary">
-                            Os cursos abaixo ficam salvos no seu perfil desde o cadastro. A partir deles, a NEXORA libera apenas as disciplinas elegiveis daquele curso para voce marcar no modulo de disciplinas.
+                            Os cursos abaixo ficam salvos no seu perfil desde o cadastro. A partir deles, a NEXORA libera apenas as disciplinas elegíveis daquele curso para você marcar no módulo de disciplinas.
                         </p>
 
                         {academicCourses.length > 0 ? (
@@ -296,7 +298,7 @@ export function ProfessorProfile() {
 
                     <div className="flex justify-end">
                         <Button type="submit" loading={saving} icon={Save} className="px-8">
-                            Salvar alteracoes
+                            Salvar alterações
                         </Button>
                     </div>
                 </form>
@@ -306,14 +308,14 @@ export function ProfessorProfile() {
                         <div className="mb-4 flex items-center justify-between">
                             <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                                 <BookOpen className="h-4 w-4 text-accent-blue-light" />
-                                Disciplinas elegiveis do seu curso
+                                Disciplinas elegíveis do seu curso
                             </h3>
                             <span className="rounded-full bg-accent-purple/10 px-2 py-0.5 text-xs font-bold text-accent-purple">
                                 {linkedSubjects.length}
                             </span>
                         </div>
                         <p className="mb-4 text-xs leading-6 text-text-secondary">
-                            Esta lista ja considera os cursos que voce salvou no perfil. Na proxima etapa, em Disciplinas matriculadas, voce escolhe quais dessas disciplinas realmente leciona.
+                            Esta lista já considera os cursos que você salvou no perfil. Na próxima etapa, em Disciplinas matriculadas, você escolhe quais dessas disciplinas realmente leciona.
                         </p>
                         <div className="space-y-2">
                             {linkedSubjectsPreview.length > 0 ? linkedSubjectsPreview.map((course) => (
@@ -323,7 +325,7 @@ export function ProfessorProfile() {
                                 </div>
                             )) : (
                                 <p className="text-xs italic text-text-secondary">
-                                    Ainda nao ha disciplinas elegiveis carregadas para os cursos salvos no seu perfil.
+                                    Ainda não há disciplinas elegíveis carregadas para os cursos salvos no seu perfil.
                                 </p>
                             )}
                         </div>
@@ -337,7 +339,7 @@ export function ProfessorProfile() {
                     <Card className="border-accent-purple/20 bg-gradient-to-br from-accent-purple/10 to-accent-blue/10 p-6">
                         <h4 className="text-sm font-semibold text-text-primary">Como funciona agora</h4>
                         <p className="mt-2 text-sm leading-6 text-text-secondary">
-                            1. O professor salva os cursos academicos no proprio perfil. 2. A NEXORA monta as disciplinas elegiveis de cada curso. 3. Na tela de disciplinas, o professor seleciona apenas as disciplinas que realmente leciona.
+                            1. O professor salva os cursos acadêmicos no próprio perfil. 2. A NEXORA monta as disciplinas elegíveis de cada curso. 3. Na tela de disciplinas, o professor seleciona apenas as disciplinas que realmente leciona.
                         </p>
                     </Card>
                 </div>

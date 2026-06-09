@@ -269,7 +269,7 @@ function RiskProjectionPanel({ rows }) {
     return (
         <Card>
             <CardHeader
-                title="Projecao de risco"
+                title="Projeção de risco"
                 subtitle="Uma previs\u00e3o simples baseada na tend\u00eancia do aluno (para agir antes)."
                 icon={TrendingUp}
             />
@@ -553,7 +553,7 @@ function AnalysisIntroModal({ open, analyses, onSelect, onClose }) {
         if (id === 'intervention_priorities') {
             return 'Uma lista do que atacar primeiro para reduzir risco e melhorar desempenho.';
         }
-        return 'Abra esta analise.';
+        return 'Abra esta análise.';
     }
 
     return (
@@ -561,7 +561,7 @@ function AnalysisIntroModal({ open, analyses, onSelect, onClose }) {
             <div className="w-full max-w-2xl rounded-[26px] border border-border-subtle bg-white p-6 shadow-card-hover">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-tertiary">Central de analises</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-tertiary">Central de análises</p>
                         <h2 className="mt-2 text-xl font-semibold text-text-primary">O que voc\u00ea quer ver agora?</h2>
                         <p className="mt-2 text-sm leading-6 text-text-secondary">
                             Escolha uma op\u00e7\u00e3o. Se tiver d\u00favida, comece por "Vis\u00e3o geral".
@@ -1208,7 +1208,7 @@ function AnalysisMenu({ analyses, selectedAnalysis, onSelect }) {
     return (
         <Card className="h-fit lg:sticky lg:top-28">
             <CardHeader
-                title="Analises acadêmicas"
+                title="Análises acadêmicas"
                 subtitle="Escolha o tipo de leitura que deseja aprofundar."
                 icon={Layers3}
             />
@@ -1638,7 +1638,7 @@ function OverviewPanel({ workspace, isCoordinator }) {
     const chartVaComparison = vaComparisonData.length > 0 ? vaComparisonData : [
         { turma: "Eng. Software A", "1ª VA": 6.8, "2ª VA": 7.2, "3ª VA": 7.5 },
         { turma: "Sistemas Inf. B", "1ª VA": 7.1, "2ª VA": 7.4, "3ª VA": 7.9 },
-        { turma: "Analise Des. C", "1ª VA": 5.9, "2ª VA": 6.3, "3ª VA": 6.8 },
+        { turma: "Análise Des. C", "1ª VA": 5.9, "2ª VA": 6.3, "3ª VA": 6.8 },
         { turma: "Ciência Comp. D", "1ª VA": 7.5, "2ª VA": 8.0, "3ª VA": 8.3 },
         { turma: "Redes Comp. E", "1ª VA": 6.2, "2ª VA": 6.5, "3ª VA": 6.9 },
     ];
@@ -2468,7 +2468,7 @@ export function AnalysisCenter() {
             link.remove();
             window.URL.revokeObjectURL(url);
         } catch (requestError) {
-            setExportError(requestError.response?.data?.detail || 'Não foi possível exportar a analise selecionada.');
+            setExportError(requestError.response?.data?.detail || 'Não foi possível exportar a análise selecionada.');
         } finally {
             setExportingFormat('');
         }
@@ -2480,7 +2480,7 @@ export function AnalysisCenter() {
                 <Card className="min-h-[320px] flex items-center justify-center">
                     <div className="flex items-center justify-center gap-3 text-text-secondary">
                         <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-                        Carregando analises...
+                        Carregando análises...
                     </div>
                 </Card>
             </div>
@@ -2491,7 +2491,7 @@ export function AnalysisCenter() {
         return (
             <EmptyState
                 icon={AlertTriangle}
-                title="Não foi possível abrir as analises acadêmicas"
+                title="Não foi possível abrir as análises acadêmicas"
                 description={error}
                 action={<Button onClick={() => window.location.reload()}>Tentar novamente</Button>}
             />
@@ -2563,7 +2563,7 @@ export function AnalysisCenter() {
                     icon={Upload}
                     title={workspace?.scope?.can_upload ? 'Nenhum arquivo histórico foi analisado ainda' : 'Ainda não há base histórica disponível para este recorte'}
                     description={workspace?.scope?.can_upload
-                        ? 'Envie um PDF ou planilha histórica para liberar as cinco analises acadêmicas do professor.'
+                        ? 'Envie um PDF ou planilha histórica para liberar as cinco análises acadêmicas do professor.'
                         : 'Quando os professores enviarem bases históricas, a coordenação poderá comparar turmas e priorizar intervenções.'}
                     action={workspace?.scope?.can_upload ? (
                         <Link to={historyRoute}>
@@ -2587,7 +2587,7 @@ export function AnalysisCenter() {
                         {selectedAnalysis === 'by_class' && (
                             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                                 <ClassesPanel
-                                    title="Analise por turma"
+                                    title="Análise por turma"
                                     subtitle="Clique em uma turma para ver os alunos com maior risco de evas\u00e3o."
                                     rows={filteredAnalysisData?.by_class || workspace.analysis_data.by_class}
                                     onSelectRow={handleSelectClass}
@@ -2608,7 +2608,7 @@ export function AnalysisCenter() {
                         )}
                         {selectedAnalysis === 'between_classes' && (
                             <BetweenClassesPanel
-                                title="Analise entre turmas"
+                                title="Análise entre turmas"
                                 subtitle="Selecione duas turmas do seu recorte para comparar."
                                 rows={filteredAnalysisData?.between_classes || workspace.analysis_data.between_classes}
                             />
@@ -2762,7 +2762,7 @@ export function AnalysisCenter() {
 
                                                 {analysesById.get(selectedAnalysis)?.description && (
                                                     <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/35 px-5 py-4 text-sm text-text-secondary">
-                                                        <span className="font-semibold text-text-primary">Esta analise mostra:</span> {analysesById.get(selectedAnalysis)?.description}
+                                                        <span className="font-semibold text-text-primary">Esta análise mostra:</span> {analysesById.get(selectedAnalysis)?.description}
                                                     </div>
                                                 )}
                                             </div>

@@ -22,7 +22,7 @@ import { Select } from '@/components/ui/Select';
 import { digitsOnly, isValidCpf, isValidEmail, isValidPhone } from '@/lib/formValidation';
 
 const STEPS = [
-    { title: 'Dados pessoais', subtitle: 'Identificacao e contato institucional.' },
+    { title: 'Dados pessoais', subtitle: 'Identificação e contato institucional.' },
     { title: 'Acesso', subtitle: 'Senha de acesso ao sistema.' },
     { title: 'Acadêmico', subtitle: 'Curso, período e rotina do aluno.' },
 ];
@@ -65,12 +65,12 @@ export function StudentRegister() {
     const validateStep = () => {
         if (step === 0) {
             if (!form.name || form.name.trim().length < 2) return 'Informe o nome completo.';
-            if (!isValidEmail(form.email)) return 'Informe um e-mail valido com @.';
-            if (form.phone && !isValidPhone(form.phone)) return 'Informe um celular apenas com numeros e 10 ou 11 digitos.';
-            if (!isValidCpf(form.cpf)) return 'Informe um CPF valido com 11 digitos numericos.';
+            if (!isValidEmail(form.email)) return 'Informe um e-mail válido com @.';
+            if (form.phone && !isValidPhone(form.phone)) return 'Informe um celular apenas com números e 10 ou 11 dígitos.';
+            if (!isValidCpf(form.cpf)) return 'Informe um CPF válido com 11 dígitos numéricos.';
         }
         if (step === 1) {
-            if (!form.password || form.password.length < 6) return 'A senha deve ter no minimo 6 caracteres.';
+            if (!form.password || form.password.length < 6) return 'A senha deve ter no mínimo 6 caracteres.';
             if (form.password !== form.confirmPassword) return 'As senhas não coincidem.';
         }
         if (step === 2) {
@@ -144,8 +144,8 @@ export function StudentRegister() {
     if (success) {
         return (
             <AuthSuccessState
-                title="Cadastro de aluno concluido"
-                description="Sua conta foi criada. Ao acessar o sistema, a NEXORA podera sincronizar automaticamente os dados academicos do portal do aluno."
+                title="Cadastro de aluno concluído"
+                description="Sua conta foi criada. Ao acessar o sistema, a NEXORA poderá sincronizar automaticamente os dados acadêmicos do portal do aluno."
                 onAction={() => navigate('/login')}
             />
         );
@@ -202,14 +202,14 @@ export function StudentRegister() {
                             <>
                                 <Input label="Nome completo" placeholder="Seu nome completo" icon={User} value={form.name} onChange={(event) => updateField('name', event.target.value)} required />
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <Input label="E-mail" type="email" placeholder="seu@email.com" icon={Mail} value={form.email} onChange={(event) => updateField('email', event.target.value)} required description="Obrigatorio informar um e-mail valido com @." />
-                                    <Input label="Celular" placeholder="Somente numeros" icon={Phone} value={form.phone} onChange={(event) => updateField('phone', digitsOnly(event.target.value, 11))} inputMode="numeric" maxLength={11} description="Digite apenas numeros, com 10 ou 11 digitos." />
+                                    <Input label="E-mail" type="email" placeholder="seu@email.com" icon={Mail} value={form.email} onChange={(event) => updateField('email', event.target.value)} required description="Obrigatório informar um e-mail válido com @." />
+                                    <Input label="Celular" placeholder="Somente números" icon={Phone} value={form.phone} onChange={(event) => updateField('phone', digitsOnly(event.target.value, 11))} inputMode="numeric" maxLength={11} description="Digite apenas números, com 10 ou 11 dígitos." />
                                 </div>
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <Input label="CPF" placeholder="Somente numeros" icon={Hash} value={form.cpf} onChange={(event) => updateField('cpf', digitsOnly(event.target.value, 11))} inputMode="numeric" maxLength={11} required description="Digite apenas numeros. O CPF precisa ter 11 digitos validos." />
+                                    <Input label="CPF" placeholder="Somente números" icon={Hash} value={form.cpf} onChange={(event) => updateField('cpf', digitsOnly(event.target.value, 11))} inputMode="numeric" maxLength={11} required description="Digite apenas números. O CPF precisa ter 11 dígitos válidos." />
                                     <Input label="Idade" type="number" placeholder="18" value={form.age} onChange={(event) => updateField('age', event.target.value)} />
                                 </div>
-                                <Select label="Genero" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
+                                <Select label="Gênero" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
                                     <option value="">Selecione...</option>
                                     <option value="masculino">Masculino</option>
                                     <option value="feminino">Feminino</option>
@@ -220,7 +220,7 @@ export function StudentRegister() {
 
                         {step === 1 ? (
                             <>
-                                <Input label="Senha" type="password" placeholder="Minimo de 6 caracteres" icon={Lock} value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
+                                <Input label="Senha" type="password" placeholder="Mínimo de 6 caracteres" icon={Lock} value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
                                 <Input label="Confirmar senha" type="password" placeholder="Repita a senha" icon={Lock} value={form.confirmPassword} onChange={(event) => updateField('confirmPassword', event.target.value)} required />
                             </>
                         ) : null}
@@ -236,7 +236,7 @@ export function StudentRegister() {
                                 </Select>
 
                                 <div>
-                                    <label className="mb-2 block text-sm font-semibold text-text-secondary">Periodo atual</label>
+                                    <label className="mb-2 block text-sm font-semibold text-text-secondary">Período atual</label>
                                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-6">
                                         {Array.from({ length: 12 }, (_, index) => index + 1).map((period) => {
                                             const selected = form.current_period === String(period);
@@ -283,8 +283,8 @@ export function StudentRegister() {
                                     {form.is_working ? (
                                         <div className="mt-4">
                                             <Input
-                                                label="Horario de trabalho"
-                                                placeholder="Ex: 08:00 as 17:00"
+                                                label="Horário de trabalho"
+                                                placeholder="Ex: 08:00 às 17:00"
                                                 icon={Calendar}
                                                 value={form.work_schedule}
                                                 onChange={(event) => updateField('work_schedule', event.target.value)}
@@ -296,7 +296,7 @@ export function StudentRegister() {
                                 <Input
                                     label="Senha do portal Lyceum"
                                     type="password"
-                                    placeholder="Opcional: preencha apenas se alterou a senha padrao"
+                                    placeholder="Opcional: preencha apenas se alterou a senha padrão"
                                     icon={Lock}
                                     value={form.lyceum_password}
                                     onChange={(event) => updateField('lyceum_password', event.target.value)}
@@ -315,7 +315,7 @@ export function StudentRegister() {
                     )}
 
                     {step < STEPS.length - 1 ? (
-                        <Button onClick={nextStep}>Proximo</Button>
+                        <Button onClick={nextStep}>Próximo</Button>
                     ) : (
                         <Button onClick={handleSubmit} loading={loading}>Finalizar cadastro</Button>
                     )}

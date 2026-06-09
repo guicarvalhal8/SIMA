@@ -680,7 +680,7 @@ export function HistoricalData({ defaultTab = 'history' }) {
     }, [records, searchTerm, showAttentionOnly]);
 
     const normalizationSteps = useMemo(() => ([
-        'Reconhece colunas fora de ordem e nomes diferentes para semestre, aluno, nota e frequencia.',
+        'Reconhece colunas fora de ordem e nomes diferentes para semestre, aluno, nota e frequência.',
         'Converte CSV, XLSX, TXT e PDF para uma estrutura única antes da leitura analítica.',
         'Vincula registros diretamente a um documento rastreável na aba de histórico.',
     ]), []);
@@ -735,7 +735,7 @@ export function HistoricalData({ defaultTab = 'history' }) {
                                         }`}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-bold text-text-primary">Apenas Leitura e Analise</span>
+                                            <span className="text-xs font-bold text-text-primary">Apenas Leitura e Análise</span>
                                             <Badge variant={!correctData ? "primary" : "neutral"} className="text-[9px]">Padrão</Badge>
                                         </div>
                                         <p className="text-[10.5px] text-text-secondary leading-5">
@@ -931,7 +931,7 @@ export function HistoricalData({ defaultTab = 'history' }) {
                             <Card>
                         <CardHeader
                             title="Planilhas e Históricos Enviados"
-                            subtitle="Acompanhe e analise planilhas consolidadas no banco de dados. Utilize a central pedagógica de IA de forma integrada clicando em um arquivo para abrir o painel de analise."
+                            subtitle="Acompanhe e analise planilhas consolidadas no banco de dados. Utilize a central pedagógica de IA de forma integrada clicando em um arquivo para abrir o painel de análise."
                             icon={FileSpreadsheet}
                         />
 
@@ -944,7 +944,7 @@ export function HistoricalData({ defaultTab = 'history' }) {
                             <EmptyState
                                 icon={Upload}
                                 title="Nenhuma planilha cadastrada"
-                                description="Realize o upload de sua primeira base histórica para começar a usufruir das analises com chat de IA."
+                                description="Realize o upload de sua primeira base histórica para começar a usufruir das análises com chat de IA."
                             />
                         ) : (
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -1253,7 +1253,7 @@ export function HistoricalData({ defaultTab = 'history' }) {
                                                         <Card variant="hero">
                                                             <CardHeader
                                                                 title="Insights & Dicas Pedagógicas da IA (NEXORA Copilot)"
-                                                                subtitle="Analise acadêmica preditiva baseada nos dados consolidados desta planilha"
+                                                                subtitle="Análise acadêmica preditiva baseada nos dados consolidados desta planilha"
                                                                 icon={Sparkles}
                                                             />
                                                             <div className="p-5 border-t border-border-subtle bg-white/70 min-h-[140px] flex flex-col justify-center">
@@ -1854,7 +1854,7 @@ export function HistoricalData({ defaultTab = 'history' }) {
                             <div className="relative border-t border-border-subtle p-5 bg-white/20 backdrop-blur-sm flex items-center justify-between">
                                 <div className="text-[10px] text-text-secondary flex items-center gap-1.5">
                                     <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                                    Google Gemini Integrado | Respostas e analises 100% em pt-BR
+                                    Google Gemini Integrado | Respostas e análises 100% em pt-BR
                                 </div>
                                 <div className="flex gap-2">
                                     {aiAnalysisResult && (

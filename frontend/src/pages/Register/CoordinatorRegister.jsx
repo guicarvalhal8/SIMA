@@ -75,7 +75,7 @@ export function CoordinatorRegister() {
             return;
         }
         if (!form.password || form.password.length < 6) {
-            setError('A senha deve ter no minimo 6 caracteres.');
+            setError('A senha deve ter no mínimo 6 caracteres.');
             return;
         }
         if (form.password !== form.confirmPassword) {
@@ -87,11 +87,11 @@ export function CoordinatorRegister() {
             return;
         }
         if (!isValidEmail(form.email)) {
-            setError('Informe um e-mail valido com @.');
+            setError('Informe um e-mail válido com @.');
             return;
         }
         if (form.phone && !isValidPhone(form.phone)) {
-            setError('Informe um celular apenas com numeros e 10 ou 11 digitos.');
+            setError('Informe um celular apenas com números e 10 ou 11 dígitos.');
             return;
         }
         if (!form.academic_course_name) {
@@ -130,7 +130,7 @@ export function CoordinatorRegister() {
     if (success) {
         return (
             <AuthSuccessState
-                title="Cadastro de coordenador concluido"
+                title="Cadastro de coordenador concluído"
                 description="Sua conta foi criada com o curso institucional vinculado para análises e gestão acadêmica."
                 onAction={() => navigate('/login')}
             />
@@ -166,7 +166,7 @@ export function CoordinatorRegister() {
                         <Input
                             label="Senha"
                             type="password"
-                            placeholder="Minimo de 6 caracteres"
+                            placeholder="Mínimo de 6 caracteres"
                             icon={Lock}
                             value={form.password}
                             onChange={(event) => updateField('password', event.target.value)}
@@ -201,17 +201,17 @@ export function CoordinatorRegister() {
                             value={form.email}
                             onChange={(event) => updateField('email', event.target.value)}
                             required
-                            description="Obrigatorio informar um e-mail valido com @."
+                            description="Obrigatório informar um e-mail válido com @."
                         />
                         <Input
                             label="Celular"
-                            placeholder="Somente numeros"
+                            placeholder="Somente números"
                             icon={Phone}
                             value={form.phone}
                             onChange={(event) => updateField('phone', digitsOnly(event.target.value, 11))}
                             inputMode="numeric"
                             maxLength={11}
-                            description="Digite apenas numeros, com 10 ou 11 digitos."
+                            description="Digite apenas números, com 10 ou 11 dígitos."
                         />
                     </div>
 

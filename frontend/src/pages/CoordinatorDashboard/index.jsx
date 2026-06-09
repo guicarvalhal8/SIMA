@@ -27,6 +27,13 @@ const riskStyles = {
     critical: 'bg-danger/10 text-danger border-danger/15',
 };
 
+const riskLabels = {
+    low: 'Baixo',
+    medium: 'Médio',
+    high: 'Alto',
+    critical: 'Crítico',
+};
+
 export function CoordinatorDashboard() {
     const [overview, setOverview] = useState(null);
     const [subjects, setSubjects] = useState([]);
@@ -79,7 +86,7 @@ export function CoordinatorDashboard() {
         { key: 'low', label: 'Baixo risco', value: riskSummary.low || 0 },
         { key: 'medium', label: 'Risco moderado', value: riskSummary.medium || 0 },
         { key: 'high', label: 'Risco alto', value: riskSummary.high || 0 },
-        { key: 'critical', label: 'Risco critico', value: riskSummary.critical || 0 },
+        { key: 'critical', label: 'Risco crítico', value: riskSummary.critical || 0 },
     ]), [riskSummary.critical, riskSummary.high, riskSummary.low, riskSummary.medium]);
 
     return (
@@ -185,7 +192,7 @@ export function CoordinatorDashboard() {
                                 <InlineMetric label="Score" value={`${((student.risk_score || 0) * 100).toFixed(0)}%`} />
                                 <div className="flex items-center lg:justify-end">
                                     <Badge variant={student.risk_level === 'critical' ? 'danger' : student.risk_level === 'high' ? 'purple' : student.risk_level === 'medium' ? 'warning' : 'success'}>
-                                        {student.risk_level}
+                                        {riskLabels[student.risk_level] || student.risk_level}
                                     </Badge>
                                 </div>
                             </motion.div>

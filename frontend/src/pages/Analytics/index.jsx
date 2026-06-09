@@ -116,7 +116,7 @@ export function Analytics() {
     return (
         <div className="space-y-8">
             <PageHeader
-                title="Analise Estatística"
+                title="Análise Estatística"
                 subtitle="Distribuição de notas e correlações entre variáveis"
                 icon={PieIcon}
             />

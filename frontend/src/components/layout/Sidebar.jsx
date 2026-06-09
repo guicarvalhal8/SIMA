@@ -12,7 +12,7 @@ export function Sidebar({ open, onClose }) {
     const location = useLocation();
     const roleMeta = getRoleMeta(user?.role);
     const navItems = getNavItems(user?.role);
-    const userName = user?.full_name || user?.username || 'Usuario';
+    const userName = user?.full_name || user?.username || 'Usuário';
 
     return (
         <motion.aside
@@ -33,7 +33,7 @@ export function Sidebar({ open, onClose }) {
                     <BrandLogo symbolOnly className="h-12 flex-shrink-0" compact />
                     <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                            Plataforma academica
+                            Plataforma acadêmica
                         </p>
                         <h1 className="mt-1 text-[1.85rem] font-bold tracking-[-0.03em] text-text-primary">
                             NEXORA
@@ -55,10 +55,10 @@ export function Sidebar({ open, onClose }) {
                 <nav className="rounded-[28px] border border-slate-200/80 bg-white/72 p-3 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.24)]">
                     <div className="flex items-center justify-between px-2 pb-3">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                            Navegacao
+                            Navegação
                         </p>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            {navItems.length} modulos
+                            {navItems.length} módulos
                         </span>
                     </div>
 
@@ -141,13 +141,13 @@ export function Sidebar({ open, onClose }) {
                         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-bg-card dark:bg-bg-tertiary px-4 py-3 text-sm font-semibold text-text-secondary transition-colors hover:border-danger/15 hover:bg-danger/5 hover:text-danger dark:hover:bg-danger/10"
                     >
                         <LogOut className="h-4 w-4" />
-                        Encerrar sessao
+                        Encerrar sessão
                     </button>
                 </div>
 
                 <div className="mt-3 flex items-center gap-2 px-2 text-[11px] leading-5 text-text-tertiary">
                     <PanelLeftClose className="h-3.5 w-3.5" />
-                    Sistema institucional de monitoramento e predicao academica
+                    Sistema institucional de monitoramento e predição acadêmica
                 </div>
             </div>
         </motion.aside>

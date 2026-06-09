@@ -90,7 +90,7 @@ export function Dashboard() {
         },
         {
             title: 'Capacidade institucional',
-            description: `${kpis.total_courses || 0} disciplinas compoem o mapa atual de acompanhamento institucional.`,
+            description: `${kpis.total_courses || 0} disciplinas compõem o mapa atual de acompanhamento institucional.`,
         },
     ];
 

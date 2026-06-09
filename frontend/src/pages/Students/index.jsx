@@ -69,7 +69,7 @@ export function StudentsList() {
                         <thead>
                             <tr className="border-b border-border-subtle bg-bg-secondary/55 text-left text-text-tertiary">
                                 <th className="px-6 py-4 font-semibold">Nome</th>
-                                <th className="px-6 py-4 font-semibold">Matricula</th>
+                                <th className="px-6 py-4 font-semibold">Matrícula</th>
                                 <th className="px-6 py-4 font-semibold">E-mail</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
                                 <th className="px-6 py-4 font-semibold">Data de ingresso</th>

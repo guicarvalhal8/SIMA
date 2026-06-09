@@ -54,7 +54,7 @@ export function Layout() {
                         <BrandLogo className="h-14" />
                     </div>
                     <div className="text-center">
-                        <p className="mt-1 text-sm text-text-secondary">Preparando o ambiente academico...</p>
+                        <p className="mt-1 text-sm text-text-secondary">Preparando o ambiente acadêmico...</p>
                     </div>
                 </div>
             </div>

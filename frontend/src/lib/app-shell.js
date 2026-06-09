@@ -16,9 +16,9 @@ import {
 
 const ROLE_META = {
     admin: {
-        label: 'Pro-Reitor',
-        area: 'Supervisao academica ampliada',
-        shortLabel: 'Pro-Reitoria',
+        label: 'Pró-Reitor',
+        area: 'Supervisão acadêmica ampliada',
+        shortLabel: 'Pró-Reitoria',
         accent: 'from-accent-blue-dark via-accent-blue to-accent-purple',
         softAccent: 'from-accent-blue-dark/8 via-accent-blue/10 to-accent-purple/14',
         badge: 'bg-accent-blue-dark/10 text-accent-blue-dark border-accent-blue/15',
@@ -37,8 +37,8 @@ const ROLE_META = {
     },
     coordinator: {
         label: 'Coordenador',
-        area: 'Gestao de curso',
-        shortLabel: 'Coordenacao',
+        area: 'Gestão de curso',
+        shortLabel: 'Coordenação',
         accent: 'from-accent-purple via-accent-purple-light to-accent-blue',
         softAccent: 'from-accent-purple/10 via-accent-purple-light/10 to-accent-blue/12',
         badge: 'bg-accent-purple/10 text-accent-purple border-accent-purple/15',
@@ -48,7 +48,7 @@ const ROLE_META = {
     professor: {
         label: 'Professor',
         area: 'Acompanhamento de turmas',
-        shortLabel: 'Docencia',
+        shortLabel: 'Docência',
         accent: 'from-accent-indigo via-accent-purple to-accent-blue',
         softAccent: 'from-accent-indigo/10 via-accent-purple/10 to-accent-blue/12',
         badge: 'bg-accent-indigo/10 text-accent-indigo border-accent-indigo/15',
@@ -57,7 +57,7 @@ const ROLE_META = {
     },
     student: {
         label: 'Aluno',
-        area: 'Jornada academica',
+        area: 'Jornada acadêmica',
         shortLabel: 'Aluno',
         accent: 'from-accent-blue via-accent-blue-light to-accent-cyan',
         softAccent: 'from-accent-blue/10 via-accent-blue-light/10 to-accent-cyan/12',
@@ -69,38 +69,38 @@ const ROLE_META = {
 
 const NAV_BY_ROLE = {
     admin: [
-        { icon: Activity, label: 'Dashboard pro-reitoria', description: 'Alertas criticos, turmas e alunos em risco', to: '/proreitor/dashboard' },
+        { icon: Activity, label: 'Dashboard Pró-Reitoria', description: 'Alertas críticos, turmas e alunos em risco', to: '/proreitor/dashboard' },
         { icon: BookOpen, label: 'Disciplinas acompanhadas', description: 'Componentes, turmas e alunos vinculados', to: '/proreitor/courses' },
-        { icon: ScrollText, label: 'Subir planilhas', description: 'Upload, normalizacao e processamento por IA', to: '/proreitor/historical-upload' },
-        { icon: FileSpreadsheet, label: 'Histórico de planilhas', description: 'Lista de arquivos e analises com IA integradas', to: '/proreitor/historical-data' },
-        { icon: BrainCircuit, label: 'Analises academicas', description: 'Cinco recortes para leitura profunda', to: '/proreitor/analysis-center' },
-        { icon: UserCircle2, label: 'Meu perfil', description: 'Dados, cursos e configuracoes da pro-reitoria', to: '/proreitor/profile' },
+        { icon: ScrollText, label: 'Subir planilhas', description: 'Envio, normalização e processamento por IA', to: '/proreitor/historical-upload' },
+        { icon: FileSpreadsheet, label: 'Histórico de planilhas', description: 'Lista de arquivos e análises com IA integradas', to: '/proreitor/historical-data' },
+        { icon: BrainCircuit, label: 'Análises acadêmicas', description: 'Cinco recortes para leitura profunda', to: '/proreitor/analysis-center' },
+        { icon: UserCircle2, label: 'Meu perfil', description: 'Dados, cursos e configurações da pró-reitoria', to: '/proreitor/profile' },
     ],
     viewer: [
-        { icon: LayoutDashboard, label: 'Visao institucional', description: 'KPIs globais e mapa de risco', to: '/' },
-        { icon: Users, label: 'Base academica', description: 'Corpo discente monitorado', to: '/students' },
-        { icon: TrendingUp, label: 'Indicadores globais', description: 'Analises e desempenho agregado', to: '/analytics' },
+        { icon: LayoutDashboard, label: 'Visão institucional', description: 'KPIs globais e mapa de risco', to: '/' },
+        { icon: Users, label: 'Base acadêmica', description: 'Corpo discente monitorado', to: '/students' },
+        { icon: TrendingUp, label: 'Indicadores globais', description: 'Análises e desempenho agregado', to: '/analytics' },
     ],
     coordinator: [
-        { icon: Shield, label: 'Painel do curso', description: 'Predicoes, tendencias e alertas', to: '/coordinator/dashboard' },
-        { icon: BrainCircuit, label: 'Central analitica', description: 'Leitura ampliada do curso e intervencoes', to: '/coordinator/analysis-center' },
+        { icon: Shield, label: 'Painel do curso', description: 'Predições, tendências e alertas', to: '/coordinator/dashboard' },
+        { icon: BrainCircuit, label: 'Central analítica', description: 'Leitura ampliada do curso e intervenções', to: '/coordinator/analysis-center' },
         { icon: Users, label: 'Alunos do curso', description: 'Busca e acompanhamento da base', to: '/students' },
-        { icon: TrendingUp, label: 'Relatorios analiticos', description: 'Estatisticas e comparativos', to: '/analytics' },
-        { icon: BrainCircuit, label: 'Predicoes por turma', description: 'Risco academico por segmento', to: '/predictions' },
-        { icon: Lightbulb, label: 'Plano de acao', description: 'Recomendacoes operacionais', to: '/recommendations' },
-        { icon: Sparkles, label: 'Insights de IA', description: 'Leituras sinteticas para decisao', to: '/ai-insights' },
+        { icon: TrendingUp, label: 'Relatórios analíticos', description: 'Estatísticas e comparativos', to: '/analytics' },
+        { icon: BrainCircuit, label: 'Predições por turma', description: 'Risco acadêmico por segmento', to: '/predictions' },
+        { icon: Lightbulb, label: 'Plano de ação', description: 'Recomendações operacionais', to: '/recommendations' },
+        { icon: Sparkles, label: 'Insights de IA', description: 'Leituras sintéticas para decisão', to: '/ai-insights' },
     ],
     professor: [
-        { icon: Activity, label: 'Dashboard docente', description: 'Alertas criticos, turmas e alunos em risco', to: '/professor/dashboard' },
+        { icon: Activity, label: 'Dashboard docente', description: 'Alertas críticos, turmas e alunos em risco', to: '/professor/dashboard' },
         { icon: BookOpen, label: 'Disciplinas matriculadas', description: 'Componentes, turmas e alunos vinculados', to: '/professor/courses' },
-        { icon: ScrollText, label: 'Subir planilhas', description: 'Upload, normalizacao e processamento por IA', to: '/professor/historical-upload' },
-        { icon: FileSpreadsheet, label: 'Histórico de planilhas', description: 'Lista de arquivos e analises com IA integradas', to: '/professor/historical-data' },
-        { icon: BrainCircuit, label: 'Analises academicas', description: 'Cinco recortes para leitura profunda', to: '/professor/analysis-center' },
+        { icon: ScrollText, label: 'Subir planilhas', description: 'Envio, normalização e processamento por IA', to: '/professor/historical-upload' },
+        { icon: FileSpreadsheet, label: 'Histórico de planilhas', description: 'Lista de arquivos e análises com IA integradas', to: '/professor/historical-data' },
+        { icon: BrainCircuit, label: 'Análises acadêmicas', description: 'Cinco recortes para leitura profunda', to: '/professor/analysis-center' },
         { icon: UserCircle2, label: 'Meu perfil', description: 'Dados docentes e cursos vinculados', to: '/professor/profile' },
     ],
     student: [
-        { icon: GraduationCap, label: 'Meu painel', description: 'Desempenho, risco e proximos passos', to: '/student/dashboard' },
-        { icon: UserCircle2, label: 'Meu perfil', description: 'Dados pessoais, academicos e Lyceum', to: '/student/profile' },
+        { icon: GraduationCap, label: 'Meu painel', description: 'Desempenho, risco e próximos passos', to: '/student/dashboard' },
+        { icon: UserCircle2, label: 'Meu perfil', description: 'Dados pessoais, acadêmicos e Lyceum', to: '/student/profile' },
     ],
 };
 
