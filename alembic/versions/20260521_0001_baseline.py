@@ -10,7 +10,7 @@ from __future__ import annotations
 from alembic import op
 
 from app.models.base import Base
-from app.models import attendance, coordinator, course, enrollment, grade, historical_data, professor, scraped_data, staff_code, student, user  # noqa: F401
+from app.models import attendance, coordinator, course, enrollment, grade, historical_data, professor, scraped_data, staff_code, student, user, login_attempt, historical_spreadsheet, coordinator_course, user_session  # noqa: F401
 
 
 # revision identifiers, used by Alembic.

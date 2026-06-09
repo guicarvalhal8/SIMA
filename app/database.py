@@ -24,20 +24,29 @@ def _resolve_database_url(database_url: str) -> str:
 
 RESOLVED_DATABASE_URL = _resolve_database_url(settings.DATABASE_URL)
 
-# Engine SQLAlchemy — connect_args necessário para SQLite
-engine = create_engine(
-    RESOLVED_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=settings.DEBUG,
-)
+is_sqlite = RESOLVED_DATABASE_URL.startswith("sqlite")
 
+if is_sqlite:
+    engine = create_engine(
+        RESOLVED_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=settings.DEBUG,
+    )
 
-# Habilita foreign keys no SQLite
-@event.listens_for(engine, "connect")
-def _set_sqlite_pragma(dbapi_conn: object, connection_record: object) -> None:
-    cursor = dbapi_conn.cursor()  # type: ignore[union-attr]
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+    # Habilita foreign keys no SQLite
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_conn: object, connection_record: object) -> None:
+        cursor = dbapi_conn.cursor()  # type: ignore[union-attr]
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+else:
+    engine = create_engine(
+        RESOLVED_DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=3600,
+        echo=settings.DEBUG,
+    )
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
