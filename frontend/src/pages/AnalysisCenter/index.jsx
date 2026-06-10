@@ -283,28 +283,28 @@ function RiskProjectionPanel({ rows }) {
     const topRows = safeRows.slice(0, 20);
     const chartRows = topRows.map((item) => ({
         aluno: item.student_name?.split(' ')[0] || item.student_name,
-        agora: Math.round(Number(item.current_risk || 0) * 100),
-        semanas8: Math.round(Number(item.projected_8w || 0) * 100),
+        atual: Math.round(Number(item.current_risk || 0) * 100),
+        mitigado: Math.round(Number(item.mitigated_risk || 0) * 100),
     }));
 
     return (
         <Card>
             <CardHeader
-                title="Projeção de risco"
-                subtitle="Uma previsão simples baseada na tendência do aluno (para agir antes)."
+                title="Impacto de ações preventivas"
+                subtitle="Veja como a ação certa diminui o risco de evasão do aluno na prática."
                 icon={TrendingUp}
             />
             <div className="space-y-4">
                 <MetricsHelp
                     items={[
-                        { label: 'Agora', description: 'Risco atual estimado.' },
-                        { label: '8 semanas', description: 'Projeção aproximada se a tendência continuar igual.' },
+                        { label: 'Atual', description: 'Risco atual estimado.' },
+                        { label: 'Mitigado', description: 'Risco estimado caso a ação recomendada seja realizada.' },
                     ]}
                 />
 
                 {!safeRows.length ? (
                     <div className="rounded-[22px] border border-dashed border-border-subtle bg-bg-secondary/40 px-6 py-10 text-center text-sm text-text-secondary">
-                        Ainda não há dados suficientes para projeção.
+                        Ainda não há dados suficientes para simular o impacto de ações.
                     </div>
                 ) : (
                     <>
@@ -312,13 +312,13 @@ function RiskProjectionPanel({ rows }) {
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartRows}>
                                     <defs>
-                                        <linearGradient id="gradientAgora" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#2563EB" stopOpacity={0.9} />
+                                        <linearGradient id="gradientAtual" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9} />
                                             <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.65} />
                                         </linearGradient>
-                                        <linearGradient id="gradient8Semanas" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#8F5BFF" stopOpacity={0.9} />
-                                            <stop offset="100%" stopColor="#6A1BFF" stopOpacity={0.65} />
+                                        <linearGradient id="gradientMitigado" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#10B981" stopOpacity={0.9} />
+                                            <stop offset="100%" stopColor="#059669" stopOpacity={0.65} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -326,8 +326,8 @@ function RiskProjectionPanel({ rows }) {
                                     <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} />
                                     <Tooltip content={<GlobalCustomTooltip />} cursor={false} />
                                     <Legend />
-                                    <Bar dataKey="agora" fill="url(#gradientAgora)" radius={[10, 10, 0, 0]} name="Agora (%)" />
-                                    <Bar dataKey="semanas8" fill="url(#gradient8Semanas)" radius={[10, 10, 0, 0]} name="8 semanas (%)" />
+                                    <Bar dataKey="atual" fill="url(#gradientAtual)" radius={[10, 10, 0, 0]} name="Risco Atual (%)" />
+                                    <Bar dataKey="mitigado" fill="url(#gradientMitigado)" radius={[10, 10, 0, 0]} name="Risco Mitigado (%)" />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -337,20 +337,25 @@ function RiskProjectionPanel({ rows }) {
                                 <thead>
                                     <tr className="text-left text-xs font-semibold uppercase tracking-[0.14em] text-text-tertiary">
                                         <th className="px-4">Aluno</th>
-                                        <th className="px-4">Agora</th>
-                                        <th className="px-4">4 semanas</th>
-                                        <th className="px-4">8 semanas</th>
+                                        <th className="px-4">Risco Atual</th>
+                                        <th className="px-4">Ação recomendada</th>
+                                        <th className="px-4">Risco Mitigado</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {topRows.map((item) => (
-                                        <tr key={item.id} className="rounded-[22px] border border-border-subtle bg-white shadow-sm">
-                                            <td className="rounded-l-[20px] px-4 py-4 font-semibold text-text-primary">{item.student_name}</td>
-                                            <td className="px-4 py-4 text-text-secondary">{formatRisk(item.current_risk)}</td>
-                                            <td className="px-4 py-4 text-text-secondary">{formatRisk(item.projected_4w)}</td>
-                                            <td className="rounded-r-[20px] px-4 py-4 text-text-secondary">{formatRisk(item.projected_8w)}</td>
-                                        </tr>
-                                    ))}
+                                    {topRows.map((item) => {
+                                        const isMitigated = item.mitigated_risk < item.current_risk;
+                                        return (
+                                            <tr key={item.id} className="rounded-[22px] border border-border-subtle bg-white shadow-sm">
+                                                <td className="rounded-l-[20px] px-4 py-4 font-semibold text-text-primary">{item.student_name}</td>
+                                                <td className="px-4 py-4 text-text-secondary">{formatRisk(item.current_risk)}</td>
+                                                <td className="px-4 py-4 text-text-primary font-medium italic">{item.recommended_action}</td>
+                                                <td className={['rounded-r-[20px] px-4 py-4 font-semibold', isMitigated ? 'text-success' : 'text-text-secondary'].join(' ')}>
+                                                    {formatRisk(item.mitigated_risk)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

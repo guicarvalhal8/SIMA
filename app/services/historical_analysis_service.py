@@ -722,6 +722,10 @@ class HistoricalAnalysisService:
             attendance_delta = round((last["avg_attendance"] - first["avg_attendance"]) if first and last else 0.0, 2)
             activity_delta = round((last["avg_activity"] - first["avg_activity"]) if first and last else 0.0, 2)
 
+            last_semester = ordered_semesters[-1] if ordered_semesters else None
+            last_records = per_semester[last_semester] if last_semester else []
+            last_breakdown = last_records[-1].get("risk_breakdown") or {} if last_records else {}
+
             rows.append({
                 "id": f"student::{_normalize_text(student_name)}",
                 "student_name": student_name,
@@ -735,6 +739,7 @@ class HistoricalAnalysisService:
                 "attendance_delta": attendance_delta,
                 "activity_delta": activity_delta,
                 "trend": points,
+                "risk_breakdown": last_breakdown,
             })
 
         rows.sort(key=lambda r: (r.get("current_risk", 0.0), r.get("risk_delta", 0.0)), reverse=True)
@@ -998,46 +1003,43 @@ class HistoricalAnalysisService:
         rows: list[dict[str, Any]] = []
 
         for item in trends:
-            semesters = int(item.get("semesters") or 0)
             current_risk = float(item.get("current_risk") or 0.0)
-            risk_delta = float(item.get("risk_delta") or 0.0)
+            breakdown = item.get("risk_breakdown") or {}
 
-            # Obter indicadores do semestre atual do aluno para projetar tendência de curto prazo
-            current_grade = float(item.get("current_grade") or 0.0)
-            current_attendance = float(item.get("current_attendance") or 0.0)
-            current_activity = float(item.get("current_activity") or 0.0)
+            # Agrupar drivers de risco do breakdown para encontrar a prioridade
+            drivers = {
+                "nota": breakdown.get("nota", 0.0) + breakdown.get("primeira_avaliacao", 0.0) + breakdown.get("oscilacao", 0.0) + breakdown.get("aprovacao", 0.0) + breakdown.get("historico", 0.0),
+                "presenca": breakdown.get("presenca", 0.0) + breakdown.get("queda_presenca", 0.0),
+                "atividade": breakdown.get("atividade", 0.0),
+            }
 
-            # Se as notas, presença ou atividade forem baixas, a tendência de curto prazo é de agravamento do risco
-            grade_factor = (6.0 - current_grade) / 10.0  # de -0.4 (ótimo) a +0.6 (crítico)
-            attendance_factor = (75.0 - current_attendance) / 100.0  # de -0.25 (ótimo) a +0.75 (crítico)
-            activity_factor = (50.0 - current_activity) / 100.0  # de -0.5 (ótimo) a +0.5 (crítico)
+            # Encontra a categoria com maior pontuação no breakdown
+            max_driver = max(drivers, key=drivers.get) if any(drivers.values()) else "nota"
 
-            # Cálculo de tendência de comportamento de curto prazo
-            short_term_step = (grade_factor * 0.15 + attendance_factor * 0.12 + activity_factor * 0.08)
-
-            # Combinar histórico de semestres (se houver) com tendência atual de curto prazo
-            if semesters > 1:
-                hist_step = risk_delta / (semesters - 1)
-                step = 0.4 * hist_step + 0.6 * short_term_step
+            if current_risk <= 0.15:
+                recommended_action = "Manter Acompanhamento"
+                mitigated_risk = current_risk
+            elif max_driver == "presenca":
+                recommended_action = "Resgatar Presença (+10%)"
+                mitigated_risk = round(current_risk * 0.60, 4)  # 40% de redução
+            elif max_driver == "atividade":
+                recommended_action = "Entregar Atividades (+30%)"
+                mitigated_risk = round(current_risk * 0.65, 4)  # 35% de redução
             else:
-                step = short_term_step
-
-            # Projeção de 4 semanas e 8 semanas
-            # 4 semanas representa metade do período analisado (step * 1.5)
-            # 8 semanas representa o final do período (step * 3.0)
-            projected_4w = round(_clamp(current_risk + step * 1.5, 0.0, 1.0), 4)
-            projected_8w = round(_clamp(current_risk + step * 3.0, 0.0, 1.0), 4)
+                recommended_action = "Focar em Notas (+1.5 pts)"
+                mitigated_risk = round(current_risk * 0.55, 4)  # 45% de redução
 
             rows.append({
                 "id": f"projection::{item.get('id')}",
                 "student_name": item.get("student_name"),
                 "current_risk": round(current_risk, 4),
-                "projected_4w": projected_4w,
-                "projected_8w": projected_8w,
-                "trend_step": round(step, 4),
+                "recommended_action": recommended_action,
+                "mitigated_risk": mitigated_risk,
+                "risk_drop": round(current_risk - mitigated_risk, 4),
             })
 
-        rows.sort(key=lambda r: (r.get("projected_8w", 0.0), r.get("current_risk", 0.0)), reverse=True)
+        # Ordenar os alunos onde a ação preventiva tem o maior impacto prático (maior risk_drop)
+        rows.sort(key=lambda r: r.get("risk_drop", 0.0), reverse=True)
         return rows[:120]
 
     def _build_heatmap(self, class_groups: list[dict[str, Any]]) -> dict[str, Any]:
