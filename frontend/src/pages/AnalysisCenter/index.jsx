@@ -2497,8 +2497,7 @@ export function AnalysisCenter() {
 
     const [criteriaModalItem, setCriteriaModalItem] = useState(null);
 
-    const [showDetails, setShowDetails] = useState(false);
-    const [openSection, setOpenSection] = useState('action');
+
 
     const detailsResultRef = useRef(null);
 
@@ -2992,15 +2991,7 @@ export function AnalysisCenter() {
                             </div>
                         </div>
                     )}
-                    {hasRecords && (
-                        <Button
-                            variant={showDetails ? 'secondary' : 'outline'}
-                            icon={Layers3}
-                            onClick={() => setShowDetails((prev) => !prev)}
-                        >
-                            Detalhes
-                        </Button>
-                    )}
+
                     {hasRecords && (
                         <div className="relative group">
                             <Button variant="outline" icon={Filter} aria-label="Filtros" />
@@ -3125,78 +3116,7 @@ export function AnalysisCenter() {
 
 
 
-                    {showDetails && (
-                        <div className="space-y-4">
-                            {analysisGroups.map((section) => {
-                                const isOpen = openSection === section.id;
-                                const hasSelectedInsideSection = section.available.some((item) => item.id === selectedAnalysis);
-                                const sectionBadges = [];
-                                if (section.id === 'action') {
-                                    if (analysisCounts.early_alerts) sectionBadges.push({ id: 'alerts', label: `${analysisCounts.early_alerts} alertas` });
-                                    if (analysisCounts.by_class) sectionBadges.push({ id: 'classes', label: `${analysisCounts.by_class} turmas` });
-                                }
-                                if (section.id === 'compare') {
-                                    if (analysisCounts.between_classes) sectionBadges.push({ id: 'between', label: `${analysisCounts.between_classes} turmas` });
-                                    if (analysisCounts.risk_topics) sectionBadges.push({ id: 'topics', label: `${analysisCounts.risk_topics} assuntos` });
-                                }
-                                return (
-                                    <Card key={section.id}>
-                                        <div className="flex flex-col gap-4 rounded-[24px] px-6 py-6 md:flex-row md:items-start md:justify-between">
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-tertiary">Secao</p>
-                                                <h3 className="mt-2 text-lg font-semibold text-text-primary">{section.title}</h3>
-                                                <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">{section.description}</p>
-                                                {sectionBadges.length > 0 && (
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        {sectionBadges.map((badge) => (
-                                                            <Badge key={badge.id} variant="info">{badge.label}</Badge>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <Button
-                                                variant={isOpen ? 'secondary' : 'outline'}
-                                                onClick={() => {
-                                                    const nextOpen = isOpen ? '' : section.id;
-                                                    setOpenSection(nextOpen);
-                                                    if (!isOpen) setShowDetails(true);
-                                                }}
-                                            >
-                                                {isOpen ? 'Fechar' : 'Abrir'}
-                                            </Button>
-                                        </div>
 
-                                        {isOpen && (
-                                            <div className="space-y-4 px-6 pb-6">
-                                                <div className="flex flex-wrap gap-2">
-                                                    {section.available.map((item) => (
-                                                        <Button
-                                                            key={item.id}
-                                                            variant={selectedAnalysis === item.id ? 'secondary' : 'outline'}
-                                                            onClick={() => {
-                                                                setSelectedAnalysis(item.id);
-                                                                setShowDetails(true);
-                                                                setOpenSection(section.id);
-                                                                scrollToResults();
-                                                            }}
-                                                        >
-                                                            {item.label}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-
-                                                {analysesById.get(selectedAnalysis)?.description && (
-                                                    <div className="rounded-[22px] border border-border-subtle bg-bg-secondary/35 px-5 py-4 text-sm text-text-secondary">
-                                                        <span className="font-semibold text-text-primary">Esta análise mostra:</span> {analysesById.get(selectedAnalysis)?.description}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </Card>
-                                );
-                            })}
-                        </div>
-                    )}
                 </>
             )}
 
