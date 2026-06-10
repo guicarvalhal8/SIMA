@@ -838,8 +838,46 @@ function RiskFactorsPanel({ rows, diagnostics }) {
 }
 
 function EarlyAlertsPanel({ rows, onSelectStudent, onViewCriteria }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPriority, setSelectedPriority] = useState('all');
+
     const safeRows = rows || [];
-    const topRows = safeRows.slice(0, 60);
+
+    // Calcular os totais a partir dos dados originais
+    const totalHigh = safeRows.filter(r => r.priority >= 5).length;
+    const totalMedium = safeRows.filter(r => r.priority >= 3 && r.priority < 5).length;
+    const totalLow = safeRows.filter(r => r.priority < 3).length;
+
+    // Lógica de filtragem local
+    const filteredRows = safeRows.filter((item) => {
+        // Filtro por prioridade
+        if (selectedPriority === 'high' && item.priority < 5) return false;
+        if (selectedPriority === 'medium' && (item.priority < 3 || item.priority >= 5)) return false;
+        if (selectedPriority === 'low' && item.priority >= 3) return false;
+
+        // Filtro por nome
+        if (searchTerm.trim() !== '') {
+            const term = searchTerm.toLowerCase();
+            return (item.student_name || '').toLowerCase().includes(term);
+        }
+
+        return true;
+    });
+
+    const topRows = filteredRows.slice(0, 60);
+
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setSelectedPriority('all');
+    };
+
+    const handlePriorityClick = (priority) => {
+        if (selectedPriority === priority) {
+            setSelectedPriority('all');
+        } else {
+            setSelectedPriority(priority);
+        }
+    };
 
     return (
         <Card>
@@ -848,7 +886,7 @@ function EarlyAlertsPanel({ rows, onSelectStudent, onViewCriteria }) {
                 subtitle="Sinais simples para agir cedo e reduzir evasão."
                 icon={ShieldAlert}
             />
-            <div className="space-y-4">
+            <div className="space-y-6">
                 <MetricsHelp
                     items={[
                         { label: 'Prioridade', description: 'Quanto maior, mais urgente olhar primeiro.' },
@@ -856,9 +894,99 @@ function EarlyAlertsPanel({ rows, onSelectStudent, onViewCriteria }) {
                     ]}
                 />
 
+                {safeRows.length > 0 && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <button
+                            type="button"
+                            onClick={() => handlePriorityClick('high')}
+                            className={[
+                                'p-5 text-left transition-all rounded-[24px] border relative overflow-hidden',
+                                selectedPriority === 'high'
+                                    ? 'bg-red-50 border-red-500 shadow-md ring-2 ring-red-500/20 text-red-955'
+                                    : 'bg-white border-border-subtle text-text-secondary hover:border-red-300 hover:bg-red-50/20'
+                            ].join(' ')}
+                        >
+                            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-red-500">Prioridade Alta</span>
+                            <p className="mt-2 text-2xl font-semibold text-text-primary">{totalHigh} {totalHigh === 1 ? 'aluno' : 'alunos'}</p>
+                            <span className="mt-1 block text-xs text-text-tertiary">
+                                {selectedPriority === 'high' ? 'Filtro ativo (clique para limpar)' : 'Clique para filtrar'}
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handlePriorityClick('medium')}
+                            className={[
+                                'p-5 text-left transition-all rounded-[24px] border relative overflow-hidden',
+                                selectedPriority === 'medium'
+                                    ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-500/20 text-amber-955'
+                                    : 'bg-white border-border-subtle text-text-secondary hover:border-amber-300 hover:bg-amber-50/20'
+                            ].join(' ')}
+                        >
+                            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-600">Prioridade Média</span>
+                            <p className="mt-2 text-2xl font-semibold text-text-primary">{totalMedium} {totalMedium === 1 ? 'aluno' : 'alunos'}</p>
+                            <span className="mt-1 block text-xs text-text-tertiary">
+                                {selectedPriority === 'medium' ? 'Filtro ativo (clique para limpar)' : 'Clique para filtrar'}
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handlePriorityClick('low')}
+                            className={[
+                                'p-5 text-left transition-all rounded-[24px] border relative overflow-hidden',
+                                selectedPriority === 'low'
+                                    ? 'bg-blue-50 border-blue-500 shadow-md ring-2 ring-blue-500/20 text-blue-955'
+                                    : 'bg-white border-border-subtle text-text-secondary hover:border-blue-300 hover:bg-blue-50/20'
+                            ].join(' ')}
+                        >
+                            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-500">Prioridade Baixa</span>
+                            <p className="mt-2 text-2xl font-semibold text-text-primary">{totalLow} {totalLow === 1 ? 'aluno' : 'alunos'}</p>
+                            <span className="mt-1 block text-xs text-text-tertiary">
+                                {selectedPriority === 'low' ? 'Filtro ativo (clique para limpar)' : 'Clique para filtrar'}
+                            </span>
+                        </button>
+                    </div>
+                )}
+
+                {safeRows.length > 0 && (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                            <input
+                                type="text"
+                                placeholder="Buscar aluno por nome..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-2xl border border-border-subtle bg-white py-3 pl-11 pr-4 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-blue transition-colors shadow-sm"
+                            />
+                        </div>
+                        {(searchTerm !== '' || selectedPriority !== 'all') && (
+                            <Button
+                                variant="outline"
+                                onClick={handleClearFilters}
+                                className="self-start sm:self-auto"
+                            >
+                                Limpar filtros
+                            </Button>
+                        )}
+                    </div>
+                )}
+
                 {!safeRows.length ? (
                     <div className="rounded-[22px] border border-dashed border-border-subtle bg-bg-secondary/40 px-6 py-10 text-center text-sm text-text-secondary">
                         Nenhum alerta encontrado para o recorte atual.
+                    </div>
+                ) : !filteredRows.length ? (
+                    <div className="rounded-[22px] border border-dashed border-border-subtle bg-bg-secondary/40 px-6 py-10 text-center text-sm text-text-secondary">
+                        Nenhum estudante atende aos filtros de busca especificados. 
+                        <button 
+                            type="button" 
+                            onClick={handleClearFilters} 
+                            className="ml-1 text-accent-blue font-semibold hover:underline"
+                        >
+                            Limpar filtros
+                        </button>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
