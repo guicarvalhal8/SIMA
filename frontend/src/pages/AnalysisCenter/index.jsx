@@ -2993,6 +2993,15 @@ export function AnalysisCenter() {
                         </div>
                     )}
                     {hasRecords && (
+                        <Button
+                            variant={showDetails ? 'secondary' : 'outline'}
+                            icon={Layers3}
+                            onClick={() => setShowDetails((prev) => !prev)}
+                        >
+                            Detalhes
+                        </Button>
+                    )}
+                    {hasRecords && (
                         <div className="relative group">
                             <Button variant="outline" icon={Filter} aria-label="Filtros" />
                             <div className="absolute right-0 top-full z-50 mt-2 w-[min(520px,calc(100vw-2rem))] translate-y-1 opacity-0 pointer-events-none transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
@@ -3114,62 +3123,7 @@ export function AnalysisCenter() {
                         {selectedAnalysis === 'heatmap' && <HeatmapPanel data={filteredAnalysisData?.heatmap || workspace.analysis_data.heatmap} />}
                     </motion.div>
 
-                    <Card>
-                        <CardHeader
-                            title="Detalhes complementares"
-                            subtitle="Abra somente o que voce precisa agora (evita excesso de informacao)."
-                            icon={Layers3}
-                        />
-                        <div className="flex flex-wrap items-center gap-3">
-                            <Button
-                                variant={showDetails ? 'secondary' : 'outline'}
-                                onClick={() => setShowDetails((prev) => !prev)}
-                            >
-                                {showDetails ? 'Ocultar detalhes' : 'Ver detalhes'}
-                            </Button>
 
-                            <div className="flex flex-1 flex-wrap items-center gap-2">
-                                <div className="relative min-w-[260px] flex-1">
-                                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
-                                    <input
-                                        value={intentQuery}
-                                        onChange={(e) => setIntentQuery(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleIntentSearch(intentQuery);
-                                            }
-                                        }}
-                                        placeholder="Buscar: 'precoces', 'alto risco', 'presen\u00e7a baixa', 'proje\u00e7\u00e3o'..."
-                                        className="h-11 w-full rounded-2xl border border-border-subtle bg-white pl-11 pr-4 text-sm text-text-primary outline-none transition focus:border-accent-blue/40"
-                                    />
-                                </div>
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => handleIntentSearch(intentQuery)}
-                                >
-                                    Buscar
-                                </Button>
-                                {analysisFilterQuery && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            setIntentQuery('');
-                                            setAnalysisFilterQuery('');
-                                            setIntentAllowedAnalyses(null);
-                                        }}
-                                    >
-                                        Limpar
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <Badge variant="info" className="cursor-pointer" onClick={() => { setIntentQuery('precoces'); handleIntentSearch('precoces'); }}>Precoces</Badge>
-                            <Badge variant="info" className="cursor-pointer" onClick={() => { setIntentQuery('alto risco'); handleIntentSearch('alto risco'); }}>Alto risco</Badge>
-                            <Badge variant="info" className="cursor-pointer" onClick={() => { setIntentQuery('fatores'); handleIntentSearch('fatores'); }}>Fatores</Badge>
-                            <Badge variant="info" className="cursor-pointer" onClick={() => { setIntentQuery('mapa de calor'); handleIntentSearch('mapa de calor'); }}>Mapa de calor</Badge>
-                        </div>
-                    </Card>
 
                     {showDetails && (
                         <div className="space-y-4">
